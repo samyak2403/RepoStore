@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="screenshots/banner.png" />
+  <img src="screenshots/banner/1.png" />
 </p>
 
 ---
@@ -246,7 +246,7 @@ RepoStore is released under the **MIT License**.
 ```
 MIT License
 
-Copyright (c) 2024 Samyak Kamble
+Copyright (c) 2026 Samyak Kamble
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
