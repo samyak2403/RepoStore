@@ -281,9 +281,9 @@ class DetailActivity : AppCompatActivity() {
                 
                 tvReleaseDate.text = formatDate(release.publishedAt)
 
-                // Find APK asset
+                // Find APK asset (case-insensitive)
                 val apkAsset = release.assets.find {
-                    it.name.endsWith(".apk") || it.name.endsWith(".aab")
+                    it.name.lowercase().endsWith(".apk")
                 }
 
                 if (apkAsset != null) {
@@ -346,27 +346,30 @@ class DetailActivity : AppCompatActivity() {
             fileName = asset.name,
             title = repoName
         ) { state ->
-            when (state) {
-                is AppInstaller.InstallState.Idle -> {
-                    binding.btnDownload.isEnabled = true
-                    binding.btnDownload.text = getString(R.string.install)
-                }
-                is AppInstaller.InstallState.Downloading -> {
-                    binding.btnDownload.isEnabled = false
-                    binding.btnDownload.text = "${state.progress}% (${state.downloaded}/${state.total})"
-                }
-                is AppInstaller.InstallState.Installing -> {
-                    binding.btnDownload.text = getString(R.string.installing)
-                }
-                is AppInstaller.InstallState.Success -> {
-                    binding.btnDownload.isEnabled = true
-                    Toast.makeText(this@DetailActivity, R.string.download_complete, Toast.LENGTH_SHORT).show()
-                    checkInstalledState()
-                }
-                is AppInstaller.InstallState.Error -> {
-                    binding.btnDownload.isEnabled = true
-                    binding.btnDownload.text = getString(R.string.install)
-                    Toast.makeText(this@DetailActivity, state.message, Toast.LENGTH_SHORT).show()
+            // Ensure UI updates run on main thread
+            runOnUiThread {
+                when (state) {
+                    is AppInstaller.InstallState.Idle -> {
+                        binding.btnDownload.isEnabled = true
+                        binding.btnDownload.text = getString(R.string.install)
+                    }
+                    is AppInstaller.InstallState.Downloading -> {
+                        binding.btnDownload.isEnabled = false
+                        binding.btnDownload.text = "${state.progress}% (${state.downloaded}/${state.total})"
+                    }
+                    is AppInstaller.InstallState.Installing -> {
+                        binding.btnDownload.text = getString(R.string.installing)
+                    }
+                    is AppInstaller.InstallState.Success -> {
+                        binding.btnDownload.isEnabled = true
+                        Toast.makeText(this@DetailActivity, R.string.download_complete, Toast.LENGTH_SHORT).show()
+                        checkInstalledState()
+                    }
+                    is AppInstaller.InstallState.Error -> {
+                        binding.btnDownload.isEnabled = true
+                        binding.btnDownload.text = getString(R.string.install)
+                        Toast.makeText(this@DetailActivity, state.message, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

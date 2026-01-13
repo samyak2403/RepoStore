@@ -8,14 +8,12 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.bumptech.glide.Glide
 import com.samyak.repostore.R
-import com.samyak.repostore.RepoStoreApp
 import com.samyak.repostore.data.api.RetrofitClient
 import com.samyak.repostore.data.auth.GitHubAuth
 import com.samyak.repostore.databinding.FragmentSettingsBinding
 import com.samyak.repostore.ui.activity.AboutActivity
 import com.samyak.repostore.ui.activity.AppDeveloperActivity
 import com.samyak.repostore.ui.activity.GitHubSignInActivity
-import com.samyak.repostore.ui.activity.GitHubTokenActivity
 
 class SettingsFragment : Fragment() {
 
@@ -34,7 +32,6 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupAccountSection()
-        setupGitHubTokenSection()
         setupAboutSection()
         setupDeveloperSection()
     }
@@ -42,7 +39,6 @@ class SettingsFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         updateAccountStatus()
-        updateTokenStatus()
         // Refresh API client to pick up new auth
         RetrofitClient.refreshAuth()
     }
@@ -80,14 +76,6 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    private fun setupGitHubTokenSection() {
-        updateTokenStatus()
-
-        binding.githubTokenCard.setOnClickListener {
-            startActivity(Intent(requireContext(), GitHubTokenActivity::class.java))
-        }
-    }
-
     private fun setupAboutSection() {
         binding.aboutCard.setOnClickListener {
             startActivity(Intent(requireContext(), AboutActivity::class.java))
@@ -97,17 +85,6 @@ class SettingsFragment : Fragment() {
     private fun setupDeveloperSection() {
         binding.developerCard.setOnClickListener {
             startActivity(Intent(requireContext(), AppDeveloperActivity::class.java))
-        }
-    }
-
-    private fun updateTokenStatus() {
-        val token = (requireActivity().application as RepoStoreApp).getStoredToken()
-        val hasToken = !token.isNullOrEmpty()
-        
-        binding.tvTokenStatus.text = if (hasToken) {
-            getString(R.string.token_configured)
-        } else {
-            getString(R.string.no_token_set)
         }
     }
 

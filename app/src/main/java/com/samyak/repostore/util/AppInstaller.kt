@@ -75,7 +75,9 @@ class AppInstaller private constructor(private val context: Context) {
     ) {
         // Prevent multiple downloads
         if (isDownloading) {
-            onStateChanged(InstallState.Error("Download already in progress"))
+            mainHandler.post {
+                onStateChanged(InstallState.Error("Download already in progress"))
+            }
             return
         }
 
@@ -100,7 +102,12 @@ class AppInstaller private constructor(private val context: Context) {
 
             // Enqueue download
             currentDownloadId = downloadManager.enqueue(request)
-            Log.d(TAG, "Download started: $currentDownloadId")
+            Log.d(TAG, "Download started: $currentDownloadId, URL: $url")
+
+            // Send initial downloading state
+            mainHandler.post {
+                onStateChanged(InstallState.Downloading(0, "0 B", "..."))
+            }
 
             // Register receiver
             registerReceiver(fileName, onStateChanged)
@@ -111,7 +118,9 @@ class AppInstaller private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
             isDownloading = false
-            onStateChanged(InstallState.Error(e.message ?: "Download failed"))
+            mainHandler.post {
+                onStateChanged(InstallState.Error(e.message ?: "Download failed"))
+            }
         }
     }
 
@@ -121,6 +130,7 @@ class AppInstaller private constructor(private val context: Context) {
         downloadReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 val id = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1) ?: -1
+                Log.d(TAG, "Download complete received: id=$id, currentId=$currentDownloadId")
                 if (id == currentDownloadId) {
                     stopProgressTracking()
                     checkDownloadStatus(fileName, onStateChanged)
@@ -128,12 +138,21 @@ class AppInstaller private constructor(private val context: Context) {
             }
         }
 
-        ContextCompat.registerReceiver(
-            context,
-            downloadReceiver,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            ContextCompat.RECEIVER_NOT_EXPORTED
-        )
+        // For Android 13+ (TIRAMISU), use RECEIVER_EXPORTED for system broadcasts
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(
+                downloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                Context.RECEIVER_EXPORTED
+            )
+        } else {
+            ContextCompat.registerReceiver(
+                context,
+                downloadReceiver,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        }
     }
 
     private fun checkDownloadStatus(fileName: String, onStateChanged: (InstallState) -> Unit) {
@@ -154,14 +173,19 @@ class AppInstaller private constructor(private val context: Context) {
                         
                         val file = getDownloadFile(fileName)
                         if (file != null && file.exists()) {
-                            installApk(file)
+                            val installStarted = installApk(file)
                             mainHandler.post {
-                                onStateChanged(InstallState.Success)
+                                if (installStarted) {
+                                    onStateChanged(InstallState.Success)
+                                } else {
+                                    onStateChanged(InstallState.Error("Failed to start installation"))
+                                }
                                 cleanup()
                             }
                         } else {
+                            Log.e(TAG, "Downloaded file not found: $fileName")
                             mainHandler.post {
-                                onStateChanged(InstallState.Error("File not found"))
+                                onStateChanged(InstallState.Error("Downloaded file not found"))
                                 cleanup()
                             }
                         }
@@ -180,7 +204,7 @@ class AppInstaller private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Status check error", e)
             mainHandler.post {
-                onStateChanged(InstallState.Error("Status check failed"))
+                onStateChanged(InstallState.Error("Status check failed: ${e.message}"))
                 cleanup()
             }
         } finally {
@@ -244,26 +268,31 @@ class AppInstaller private constructor(private val context: Context) {
         progressRunnable = null
     }
 
-    private fun installApk(file: File) {
-        try {
+    private fun installApk(file: File): Boolean {
+        return try {
+            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    file
+                )
+            } else {
+                Uri.fromFile(file)
+            }
+            
+            Log.d(TAG, "Installing APK from: ${file.absolutePath}, URI: $uri")
+            
             val intent = Intent(Intent.ACTION_VIEW).apply {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.provider",
-                        file
-                    )
-                } else {
-                    Uri.fromFile(file)
-                }
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-            Log.d(TAG, "Install intent started")
+            Log.d(TAG, "Install intent started successfully")
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Install error", e)
+            Log.e(TAG, "Install error: ${e.message}", e)
+            false
         }
     }
 
@@ -278,8 +307,11 @@ class AppInstaller private constructor(private val context: Context) {
                 Log.e(TAG, "Cancel error", e)
             }
         }
+        val callback = stateCallback
         cleanup()
-        stateCallback?.invoke(InstallState.Idle)
+        mainHandler.post {
+            callback?.invoke(InstallState.Idle)
+        }
     }
 
     private fun cleanup() {
@@ -385,7 +417,15 @@ class AppInstaller private constructor(private val context: Context) {
      */
     fun findPackage(repoName: String, ownerName: String): String? {
         val pm = context.packageManager
-        val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        
+        // For Android 11+ (API 30+), we need QUERY_ALL_PACKAGES permission
+        // or use specific package queries
+        val apps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.getInstalledApplications(PackageManager.GET_META_DATA)
+        }
 
         val repo = repoName.lowercase().replace(Regex("[^a-z0-9]"), "")
         val owner = ownerName.lowercase().replace(Regex("[^a-z0-9]"), "")

@@ -76,101 +76,6 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Rate Limit Info Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="?attr/colorPrimaryContainer"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/rate_limit_info_title"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                    android:textColor="?attr/colorOnPrimaryContainer" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/rate_limit_info_desc"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                    android:textColor="?attr/colorOnPrimaryContainer" />
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- GitHub Token Section -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/github_token_card"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="?attr/colorSurfaceVariant"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="0dp"
-            app:rippleColor="?attr/colorPrimary">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="16dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/github_token"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textColor="?attr/colorOnSurface" />
-
-                    <TextView
-                        android:id="@+id/tv_token_status"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/no_token_set"
-                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-
-                </LinearLayout>
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/ic_arrow_forward"
-                    android:contentDescription="@null"
-                    app:tint="?attr/colorOnSurfaceVariant" />
-
-            </LinearLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginStart="4dp"
-            android:text="@string/github_token_desc"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
 
         <!-- About Section -->
         <com.google.android.material.card.MaterialCardView
@@ -190,9 +95,17 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/about"
+                    android:src="@drawable/ic_info"
+                    app:tint="?attr/colorOnSurfaceVariant" />
+
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
                     android:layout_weight="1"
                     android:text="@string/about"
                     android:textAppearance="@style/TextAppearance.Material3.TitleMedium"

@@ -1,8 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- External storage root - covers Downloads folder -->
+    <external-path
+        name="external_storage"
+        path="." />
+    
+    <!-- Downloads folder specifically -->
     <external-path
         name="downloads"
         path="Download/" />
+    
+    <!-- App-specific external files -->
     <external-files-path
         name="external_files"
         path="." />

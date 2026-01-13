@@ -34,7 +34,7 @@ object GitHubAuth {
     // 3. Fill: Application name: RepoStore, Homepage URL: https://github.com, Callback URL: https://github.com
     // 4. Click "Register application"
     // 5. Copy the Client ID and paste below
-    private const val CLIENT_ID = "YOUR_CLIENT_ID_HERE"  // <-- REPLACE THIS!
+    private const val CLIENT_ID = "Ov23liinOZYK0IduPvuO"  // <-- REPLACE THIS!
     
     private const val DEVICE_CODE_URL = "https://github.com/login/device/code"
     private const val ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
