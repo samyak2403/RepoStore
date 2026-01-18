@@ -1,0 +1,6 @@
+• Security: OAuth now requests zero permissions - safer authentication
+• Fixed Gradle wrapper version mismatch for F-Droid compatibility
+• Added SHA-256 checksum for Gradle download verification
+• Improved short description for app stores
+• Removed unnecessary binary files
+• Minor bug fixes and improvements
