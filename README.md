@@ -50,7 +50,7 @@ RepoStore is a native Android app that turns GitHub releases into a clean, Play 
 </a>
 
 <a href="https://apt.izzysoft.de/packages/com.samyak.repostore">
-  <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="80" alt="Get it at IzzyOnDroid" height="60"/>
+  <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png" height="60" alt="Get it at IzzyOnDroid"/>
 </a>
 
 ---
