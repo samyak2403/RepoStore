@@ -293,18 +293,25 @@ class HomeFragment : Fragment() {
     private fun updateSections(apps: List<AppItem>) {
         if (apps.isEmpty()) return
 
-        // Featured: top 5 by stars
-        val featured = apps.sortedByDescending { it.repo.stars }.take(5)
+        // Sort by stars for featured/trending
+        val sortedByStars = apps.sortedByDescending { it.repo.stars }
+        
+        // Featured: top apps by stars (show at least some)
+        val featured = sortedByStars.take(minOf(5, apps.size))
         featuredAdapter.submitList(featured)
         setupWormDotsIndicator()
 
-        // Trending: next 10
-        val trending = apps.sortedByDescending { it.repo.stars }.drop(5).take(10)
-        trendingAdapter.submitList(trending.ifEmpty { apps.take(10) })
+        // Trending: mix of top apps (may overlap for small sets)
+        val trending = if (apps.size > 5) {
+            sortedByStars.drop(3).take(10)
+        } else {
+            sortedByStars.take(10)
+        }
+        trendingAdapter.submitList(trending.ifEmpty { sortedByStars.take(10) })
 
         // Recently updated: sorted by update date
         val updated = apps.sortedByDescending { it.repo.updatedAt }.take(10)
-        updatedAdapter.submitList(updated)
+        updatedAdapter.submitList(updated.ifEmpty { sortedByStars.take(10) })
     }
 
     private fun navigateToDetail(appItem: AppItem) {

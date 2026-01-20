@@ -81,12 +81,15 @@ enum class AppTag {
     NEW, UPDATED, ARCHIVED
 }
 
-enum class AppCategory(val displayName: String, val query: String) {
-    ALL("All", "android app"),
-    TOOLS("Tools", "android tool app"),
-    PRODUCTIVITY("Productivity", "android productivity app"),
-    GAMES("Games", "android game"),
-    OPEN_SOURCE("Open Source", "android open source app")
+enum class AppCategory(val displayName: String, val queries: List<String>) {
+    ALL("All", listOf("android app", "topic:android")),
+    TOOLS("Tools", listOf("android tool", "android utility", "topic:android-tool")),
+    PRODUCTIVITY("Productivity", listOf("android productivity", "android notes", "android todo", "topic:android-productivity")),
+    GAMES("Games", listOf("android game", "topic:android-game", "mobile game android")),
+    OPEN_SOURCE("Open Source", listOf("android foss", "android open-source", "topic:foss topic:android"));
+
+    // For backward compatibility
+    val query: String get() = queries.first()
 }
 
 data class GitHubUser(

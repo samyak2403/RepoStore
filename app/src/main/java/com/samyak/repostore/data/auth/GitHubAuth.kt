@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.samyak.repostore.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -18,20 +19,19 @@ import okhttp3.Request
  * - Without auth: 60 requests/hour
  * - With auth: 5,000 requests/hour
  * 
- * Uses SecureTokenStorage for encrypted token persistence.
+ * Security notes:
+ * - Uses SecureTokenStorage with Android Keystore encryption for token persistence
+ * - Client ID is loaded from BuildConfig (can be overridden in local.properties)
+ * - For forks: Create your own OAuth App at https://github.com/settings/developers
  */
 object GitHubAuth {
 
     private const val TAG = "GitHubAuth"
 
-    // GitHub OAuth App Client ID
-    // TO GET YOUR OWN CLIENT ID:
-    // 1. Go to: https://github.com/settings/developers
-    // 2. Click "New OAuth App"
-    // 3. Fill: Application name: RepoStore, Homepage URL: https://github.com, Callback URL: https://github.com
-    // 4. Click "Register application"
-    // 5. Copy the Client ID and paste below
-    private const val CLIENT_ID = "Ov23liinOZYK0IduPvuO"  // <-- REPLACE THIS!
+    // GitHub OAuth App Client ID - loaded from BuildConfig
+    // To use your own: Add GITHUB_CLIENT_ID=your_client_id to local.properties
+    // Get your own at: https://github.com/settings/developers -> "New OAuth App"
+    private val CLIENT_ID: String = BuildConfig.GITHUB_CLIENT_ID
     
     private const val DEVICE_CODE_URL = "https://github.com/login/device/code"
     private const val ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"

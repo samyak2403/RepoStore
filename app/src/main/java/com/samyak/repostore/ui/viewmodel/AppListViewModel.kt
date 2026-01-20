@@ -42,12 +42,16 @@ class AppListViewModel(
     }
 
     private fun getQuery(): String {
-        val categoryQuery = category?.query ?: "android app"
-        return when (ListType.valueOf(listType)) {
-            ListType.FEATURED -> "$categoryQuery topic:android stars:>500"
-            ListType.TRENDING -> "$categoryQuery topic:android stars:>100"
-            ListType.UPDATED -> "$categoryQuery topic:android pushed:>2024-01-01"
-            ListType.CATEGORY -> categoryQuery
+        // Use simple keywords that work well with GitHub search
+        return when {
+            category == AppCategory.GAMES -> "android game"
+            category != null -> category.query
+            else -> when (ListType.valueOf(listType)) {
+                ListType.FEATURED -> "android app"
+                ListType.TRENDING -> "android app"
+                ListType.UPDATED -> "android app"
+                ListType.CATEGORY -> "android app"
+            }
         }
     }
 

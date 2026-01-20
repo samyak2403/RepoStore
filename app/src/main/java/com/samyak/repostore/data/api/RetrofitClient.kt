@@ -56,16 +56,20 @@ object RetrofitClient {
     private fun buildOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .cache(cache)
-            // Add auth header if token is available
+            // Add auth header ONLY for GitHub API requests (security: principle of least privilege)
             .addInterceptor { chain ->
-                val requestBuilder = chain.request().newBuilder()
+                val request = chain.request()
+                val requestBuilder = request.newBuilder()
                     .addHeader("Accept", "application/vnd.github.v3+json")
                     .addHeader("User-Agent", "GitHubAppStore-Android")
 
-                // Add authorization if token exists (increases rate limit from 60 to 5000/hour)
-                val token = getAuthToken()
-                if (!token.isNullOrBlank()) {
-                    requestBuilder.addHeader("Authorization", "Bearer $token")
+                // Only add authorization for GitHub API domain (prevents token leakage)
+                val host = request.url.host.lowercase()
+                if (host == "api.github.com" || host.endsWith(".github.com")) {
+                    val token = getAuthToken()
+                    if (!token.isNullOrBlank()) {
+                        requestBuilder.addHeader("Authorization", "Bearer $token")
+                    }
                 }
 
                 chain.proceed(requestBuilder.build())

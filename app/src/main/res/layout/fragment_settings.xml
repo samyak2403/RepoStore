@@ -77,8 +77,6 @@
         </com.google.android.material.card.MaterialCardView>
 
 
-
-
         <!-- About Section -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/about_card"

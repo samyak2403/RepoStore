@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
+
+// Load local.properties for secrets like GITHUB_CLIENT_ID
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { this.load(it) }
+}
+val localGithubClientId = (localProps.getProperty("GITHUB_CLIENT_ID") ?: "Ov23liinOZYK0IduPvuO").trim()
 
 android {
     namespace = "com.samyak.repostore"
@@ -12,10 +21,15 @@ android {
         applicationId = "com.samyak.repostore"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.7"
+        versionCode = 9
+        versionName = "1.0.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // GitHub OAuth Client ID
+        // To use your own: Add GITHUB_CLIENT_ID=your_client_id to local.properties
+        // Get your own at: https://github.com/settings/developers -> "New OAuth App"
+        buildConfigField("String", "GITHUB_CLIENT_ID", "\"${localGithubClientId}\"")
     }
 
     buildTypes {
@@ -37,6 +51,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
     
     // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)

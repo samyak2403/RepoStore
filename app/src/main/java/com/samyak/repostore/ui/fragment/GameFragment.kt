@@ -256,18 +256,25 @@ class GameFragment : Fragment() {
     private fun updateSections(games: List<AppItem>) {
         if (games.isEmpty()) return
 
-        // Featured: top 5 by stars
-        val featured = games.sortedByDescending { it.repo.stars }.take(5)
+        // Sort by stars for featured/popular
+        val sortedByStars = games.sortedByDescending { it.repo.stars }
+        
+        // Featured: top games by stars (show at least some)
+        val featured = sortedByStars.take(minOf(5, games.size))
         featuredAdapter.submitList(featured)
         setupWormDotsIndicator()
 
-        // Popular: next 10 by stars
-        val popular = games.sortedByDescending { it.repo.stars }.drop(5).take(10)
-        popularAdapter.submitList(popular.ifEmpty { games.take(10) })
+        // Popular: mix of top games (may overlap with featured for small sets)
+        val popular = if (games.size > 5) {
+            sortedByStars.drop(3).take(10)  // Skip first 3 to reduce overlap
+        } else {
+            sortedByStars.take(10)  // Show all if we have few games
+        }
+        popularAdapter.submitList(popular.ifEmpty { sortedByStars.take(10) })
 
-        // New: sorted by creation date
-        val newGames = games.sortedByDescending { it.repo.createdAt }.take(10)
-        newAdapter.submitList(newGames)
+        // New: sorted by creation/update date
+        val newGames = games.sortedByDescending { it.repo.updatedAt }.take(10)
+        newAdapter.submitList(newGames.ifEmpty { sortedByStars.take(10) })
     }
 
     private fun navigateToDetail(appItem: AppItem) {
