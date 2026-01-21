@@ -1,0 +1,81 @@
+Categories:
+  - Internet
+
+License: MIT
+
+AuthorName: Samyak Kamble
+AuthorWebSite: https://github.com/samyak2403
+
+SourceCode: https://github.com/samyak2403/RepoStore
+IssueTracker: https://github.com/samyak2403/RepoStore/issues
+Changelog: https://github.com/samyak2403/RepoStore/releases
+
+Donate: https://github.com/sponsors/samyak2403
+
+AutoName: RepoStore
+
+Summary: Discover, install, and update Android apps directly from GitHub releases.
+
+Description: |-
+  RepoStore is a native Android app that turns GitHub releases into a clean,
+  Play Store-style experience.
+
+  '''Key Features:'''
+
+  * Smart Discovery - Home sections for Trending, Recently Updated, and Featured projects.
+    Only repos with valid APK assets are shown.
+  * Latest-Release Installs - Fetches the latest release for each repo and shows only
+    assets from the newest release with a single Install action.
+  * Rich Details Screen - View app name, version, stars, forks, language stats,
+    rendered README content, release notes with markdown formatting, and screenshot gallery.
+  * Install & Update Tracking - Tracks installations and shows when updates are available.
+    Shows "Open" for installed apps.
+  * Material You Design - Material 3 design with dynamic theming support and dark mode.
+  * GitHub Integration - Optional GitHub sign-in to increase API rate limit from 60 to
+    5,000 requests/hour.
+
+  '''How it works:'''
+
+  RepoStore uses GitHub's public API to search for Android repositories. It filters
+  to show only those that have real, downloadable APK files in their releases.
+  When you find an app you like, tap Install to download and install it directly.
+
+  '''Privacy & Security:'''
+
+  * No tracking or analytics
+  * No ads
+  * Open source (MIT License)
+  * Downloads come directly from GitHub releases
+  * HTTPS-only connections
+
+  '''Requirements:'''
+
+  * Android 8.0 (API 26) or higher
+  * Internet connection
+
+RepoType: git
+Repo: https://github.com/samyak2403/RepoStore.git
+
+Builds:
+  - versionName: 1.0.8
+    versionCode: 9
+    commit: v1.0.8
+    subdir: app
+    submodules: true
+    sudo:
+      - apt-get update
+      - apt-get install -y openjdk-17-jdk-headless
+      - update-java-alternatives -a
+    gradle:
+      - yes
+    prebuild:
+      - sed -i -e '/signingConfig/d' build.gradle.kts
+
+AllowedAPKSigningKeys: dbddc76bf7056f3cfde555c3859c3bbfc31a6f38da89764be9a7633c7e64ce25
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+VercodeOperation:
+  - '%c'
+CurrentVersion: 1.0.8
+CurrentVersionCode: 9
