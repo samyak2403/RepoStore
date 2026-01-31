@@ -186,4 +186,17 @@
     <string name="version_format">Version %s</string>
     <string name="username_format">\@%s</string>
     <string name="error_with_retry">%1$s\n\n%2$s</string>
+    
+    <!-- My Apps -->
+    <string name="my_apps">My Apps</string>
+    <string name="no_favorite_apps">No favorite apps yet</string>
+    <string name="no_favorite_apps_hint">Tap the heart icon on any app to add it here</string>
+    <string name="add_to_favorites">Add to favorites</string>
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="added_to_favorites">Added to favorites</string>
+    <string name="removed_from_favorites">Removed from favorites</string>
+    <string name="favorite_apps">Favorite Apps</string>
+    <string name="manage_apps">Manage Apps</string>
+    <string name="no_installed_apps">No installed apps</string>
+    <string name="no_installed_apps_hint">Apps you install from your favorites will appear here</string>
 </resources>

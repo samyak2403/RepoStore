@@ -21,6 +21,8 @@ import com.bumptech.glide.Glide
 import com.google.android.material.chip.Chip
 import com.samyak.repostore.R
 import com.samyak.repostore.RepoStoreApp
+import com.samyak.repostore.data.db.FavoriteAppDao
+import com.samyak.repostore.data.model.FavoriteApp
 import com.samyak.repostore.data.model.GitHubRelease
 import com.samyak.repostore.data.model.GitHubRepo
 import com.samyak.repostore.data.model.ReleaseAsset
@@ -55,11 +57,13 @@ class DetailActivity : AppCompatActivity() {
 
     private lateinit var screenshotAdapter: ScreenshotAdapter
     private lateinit var appInstaller: AppInstaller
+    private lateinit var favoriteAppDao: FavoriteAppDao
     
     private var owner: String = ""
     private var repoName: String = ""
     private var currentApkAsset: ReleaseAsset? = null
     private var installedPackageName: String? = null
+    private var currentRepo: GitHubRepo? = null
     
     // Shimmer layout for skeleton loading
     private var shimmerLayout: ShimmerFrameLayout? = null
@@ -93,6 +97,7 @@ class DetailActivity : AppCompatActivity() {
         }
 
         appInstaller = AppInstaller.getInstance(this)
+        favoriteAppDao = (application as RepoStoreApp).favoriteAppDao
         
         // Initialize shimmer layout
         shimmerLayout = findViewById(R.id.skeleton_layout)
@@ -209,6 +214,13 @@ class DetailActivity : AppCompatActivity() {
                 }
             }
         }
+        
+        // Observe favorite state
+        observeFavoriteState()
+    }
+    
+    private fun observeFavoriteState() {
+        // We'll start observing after we have the repo ID
     }
 
     private fun handleUiState(state: DetailUiState) {
@@ -252,8 +264,49 @@ class DetailActivity : AppCompatActivity() {
             visibility = View.GONE
         }
     }
+    
+    private fun setupFavoriteButton(repo: GitHubRepo) {
+        // Observe favorite state
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                favoriteAppDao.isFavorite(repo.id).collect { isFavorite ->
+                    updateFavoriteIcon(isFavorite)
+                }
+            }
+        }
+        
+        // Set click listener for favorite button
+        binding.ivFavorite.setOnClickListener {
+            lifecycleScope.launch {
+                val isFavorite = favoriteAppDao.isFavoriteSync(repo.id)
+                if (isFavorite) {
+                    favoriteAppDao.removeFavorite(repo.id)
+                    Toast.makeText(this@DetailActivity, R.string.removed_from_favorites, Toast.LENGTH_SHORT).show()
+                } else {
+                    val favoriteApp = FavoriteApp.fromRepo(repo)
+                    favoriteAppDao.addFavorite(favoriteApp)
+                    Toast.makeText(this@DetailActivity, R.string.added_to_favorites, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    
+    private fun updateFavoriteIcon(isFavorite: Boolean) {
+        if (isFavorite) {
+            binding.ivFavorite.setImageResource(R.drawable.ic_favorite)
+            binding.ivFavorite.imageTintList = getColorStateList(R.color.favorite_active)
+            binding.ivFavorite.contentDescription = getString(R.string.remove_from_favorites)
+        } else {
+            binding.ivFavorite.setImageResource(R.drawable.ic_favorite_border)
+            binding.ivFavorite.imageTintList = null
+            binding.ivFavorite.contentDescription = getString(R.string.add_to_favorites)
+        }
+    }
 
     private fun bindRepoData(repo: GitHubRepo, release: GitHubRelease?) {
+        // Store current repo for favorite functionality
+        currentRepo = repo
+        
         binding.apply {
             tvAppName.text = repo.name
             tvDeveloper.text = repo.owner.login
@@ -268,6 +321,9 @@ class DetailActivity : AppCompatActivity() {
                 )
                 startActivity(intent)
             }
+            
+            // Setup favorite button
+            setupFavoriteButton(repo)
 
             // Stats
             tvStars.text = formatNumber(repo.stars)

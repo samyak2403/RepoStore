@@ -36,6 +36,16 @@
             android:name=".ui.activity.AppListActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.activity.FavoriteActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
+            android:name=".ui.activity.MyAppsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
         
         <activity
             android:name=".ui.activity.DetailActivity"

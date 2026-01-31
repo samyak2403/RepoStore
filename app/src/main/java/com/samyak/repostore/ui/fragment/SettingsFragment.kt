@@ -17,6 +17,8 @@ import com.samyak.repostore.ui.activity.AppDeveloperActivity
 import com.samyak.repostore.ui.activity.DonateActivity
 import com.samyak.repostore.ui.activity.GitHubSignInActivity
 import com.samyak.repostore.ui.activity.LicensesActivity
+import com.samyak.repostore.ui.activity.FavoriteActivity
+import com.samyak.repostore.ui.activity.MyAppsActivity
 
 class SettingsFragment : Fragment() {
 
@@ -35,6 +37,8 @@ class SettingsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupAccountSection()
+        setupMyAppsSection()
+        setupManageAppsSection()
         setupAboutSection()
         setupDeveloperSection()
         setupDonateSection()
@@ -79,6 +83,18 @@ class SettingsFragment : Fragment() {
             binding.tvAccountName.text = getString(R.string.github_sign_in)
             binding.tvAccountStatus.text = getString(R.string.sign_in_to_increase_limit)
             binding.ivAccountAvatar.setImageResource(R.drawable.ic_account)
+        }
+    }
+
+    private fun setupMyAppsSection() {
+        binding.myAppsCard.setOnClickListener {
+            startActivity(Intent(requireContext(), FavoriteActivity::class.java))
+        }
+    }
+
+    private fun setupManageAppsSection() {
+        binding.manageAppsCard.setOnClickListener {
+            startActivity(Intent(requireContext(), MyAppsActivity::class.java))
         }
     }
 

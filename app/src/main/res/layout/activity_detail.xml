@@ -94,6 +94,18 @@
 
                 </LinearLayout>
 
+                <!-- Favorite Button -->
+                <ImageView
+                    android:id="@+id/iv_favorite"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="top"
+                    android:background="@drawable/bg_circle_grey"
+                    android:contentDescription="@string/add_to_favorites"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_favorite_border"
+                    app:tint="?attr/colorOnSurface" />
+
             </LinearLayout>
 
             <!-- Stats Row -->

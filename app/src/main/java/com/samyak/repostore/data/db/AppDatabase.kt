@@ -5,13 +5,15 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.samyak.repostore.data.model.FavoriteApp
 import com.samyak.repostore.data.model.GitHubRepo
 
-@Database(entities = [GitHubRepo::class], version = 2, exportSchema = false)
+@Database(entities = [GitHubRepo::class, FavoriteApp::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun repoDao(): RepoDao
+    abstract fun favoriteAppDao(): FavoriteAppDao
 
     companion object {
         @Volatile

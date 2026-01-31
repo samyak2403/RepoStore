@@ -11,6 +11,7 @@ class RepoStoreApp : Application() {
 
     val database by lazy { AppDatabase.getDatabase(this) }
     val repository by lazy { GitHubRepository(database.repoDao()) }
+    val favoriteAppDao by lazy { database.favoriteAppDao() }
 
     override fun onCreate() {
         super.onCreate()
