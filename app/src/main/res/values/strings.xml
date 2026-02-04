@@ -199,4 +199,19 @@
     <string name="manage_apps">Manage Apps</string>
     <string name="no_installed_apps">No installed apps</string>
     <string name="no_installed_apps_hint">Apps you install from your favorites will appear here</string>
+    
+    <!-- Download Settings -->
+    <string name="download_settings">Download Settings</string>
+    <string name="proxy">Proxy</string>
+    <string name="mirror_proxy_description">For countries or regions where GitHub is blocked, use a proxy to download.</string>
+    <string name="enable_mirror_proxy">Enable Mirror Proxy</string>
+    <string name="proxy_url_hint">Proxy URL (e.g., https://gh-proxy.com/)</string>
+    <string name="popular_proxies">Popular Proxies</string>
+    <string name="multi_part_download">Multi-Part Download</string>
+    <string name="multi_part_description">Download files using multiple connections for faster speeds.</string>
+    <string name="enable_multi_part">Enable Multi-Part Download</string>
+    <string name="download_threads">Download Threads</string>
+    <string name="thread_count_hint">Higher values may improve speed but use more resources (1-32)</string>
+    <string name="download_settings_info">Mirror proxy transforms GitHub URLs through a proxy server. Multi-part downloading splits files into chunks for parallel downloading.</string>
+    <string name="download_speed_format">%s/s</string>
 </resources>

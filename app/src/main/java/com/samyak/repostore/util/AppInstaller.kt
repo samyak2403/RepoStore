@@ -15,6 +15,8 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.samyak.repostore.data.prefs.DownloadPreferences
+import kotlinx.coroutines.*
 import java.io.File
 
 /**
@@ -40,6 +42,12 @@ class AppInstaller private constructor(private val context: Context) {
     private val downloadManager: DownloadManager by lazy {
         context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     }
+    
+    private val multiPartDownloader: MultiPartDownloader by lazy {
+        MultiPartDownloader(context)
+    }
+    
+    private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -88,9 +96,92 @@ class AppInstaller private constructor(private val context: Context) {
         // Clean old file
         deleteFile(fileName)
 
+        // Check if multi-part download is enabled
+        val useMultiPart = DownloadPreferences.isMultiPartEnabled(context) || 
+                          DownloadPreferences.isMirrorProxyEnabled(context)
+        
+        if (useMultiPart) {
+            downloadWithMultiPart(url, fileName, onStateChanged)
+        } else {
+            downloadWithDownloadManager(url, fileName, title, onStateChanged)
+        }
+    }
+    
+    /**
+     * Download using multi-part downloader with coroutines
+     */
+    private fun downloadWithMultiPart(
+        url: String,
+        fileName: String,
+        onStateChanged: (InstallState) -> Unit
+    ) {
+        Log.d(TAG, "Using multi-part downloader for: $url")
+        
+        downloadScope.launch {
+            try {
+                multiPartDownloader.download(url, fileName) { state ->
+                    mainHandler.post {
+                        when (state) {
+                            is MultiPartDownloader.DownloadState.Idle -> {
+                                onStateChanged(InstallState.Idle)
+                            }
+                            is MultiPartDownloader.DownloadState.Downloading -> {
+                                val downloadedStr = formatSize(state.downloadedBytes)
+                                val totalStr = if (state.totalBytes > 0) formatSize(state.totalBytes) else "..."
+                                onStateChanged(InstallState.Downloading(
+                                    state.progress,
+                                    downloadedStr,
+                                    totalStr
+                                ))
+                            }
+                            is MultiPartDownloader.DownloadState.Completed -> {
+                                onStateChanged(InstallState.Installing)
+                                val installStarted = installApk(state.file)
+                                if (installStarted) {
+                                    onStateChanged(InstallState.Success)
+                                } else {
+                                    onStateChanged(InstallState.Error("Failed to start installation"))
+                                }
+                                cleanup()
+                            }
+                            is MultiPartDownloader.DownloadState.Error -> {
+                                onStateChanged(InstallState.Error(state.message))
+                                cleanup()
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Multi-part download error", e)
+                mainHandler.post {
+                    onStateChanged(InstallState.Error(e.message ?: "Download failed"))
+                    cleanup()
+                }
+            }
+        }
+        
+        // Send initial downloading state
+        mainHandler.post {
+            onStateChanged(InstallState.Downloading(0, "0 B", "..."))
+        }
+    }
+    
+    /**
+     * Download using system DownloadManager (fallback)
+     */
+    private fun downloadWithDownloadManager(
+        url: String,
+        fileName: String,
+        title: String,
+        onStateChanged: (InstallState) -> Unit
+    ) {
         try {
+            // Apply mirror proxy if enabled
+            val downloadUrl = DownloadPreferences.transformUrl(context, url)
+            Log.d(TAG, "Using DownloadManager for: $downloadUrl")
+            
             // Create request
-            val request = DownloadManager.Request(Uri.parse(url)).apply {
+            val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                 setTitle(title)
                 setDescription("Downloading APK...")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -102,7 +193,7 @@ class AppInstaller private constructor(private val context: Context) {
 
             // Enqueue download
             currentDownloadId = downloadManager.enqueue(request)
-            Log.d(TAG, "Download started: $currentDownloadId, URL: $url")
+            Log.d(TAG, "Download started: $currentDownloadId, URL: $downloadUrl")
 
             // Send initial downloading state
             mainHandler.post {

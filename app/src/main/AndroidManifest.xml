@@ -93,6 +93,11 @@
             android:parentActivityName=".ui.activity.SettingsActivity" />
 
         <activity
+            android:name=".ui.activity.DownloadSettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.activity.SettingsActivity" />
+
+        <activity
             android:name=".ui.activity.ScreenshotViewerActivity"
             android:exported="false"
             android:theme="@style/Theme.RepoStore.Fullscreen"
