@@ -25,7 +25,7 @@ Thank you for your interest in contributing to RepoStore! 🎉
 1. **Fork** the repository
 2. **Clone** your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/RepoStore.git
+   git clone https://github.com/samyak2403/RepoStore.git
    ```
 3. **Create a branch** for your feature:
    ```bash
