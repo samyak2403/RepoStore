@@ -12,7 +12,9 @@
   <a href="https://github.com/samyak2403/RepoStore/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/samyak2403/RepoStore?style=social"/></a>
   <img alt="Material 3" src="https://img.shields.io/badge/Material-3-4285F4?logo=material-design&logoColor=white"/>
   <img alt="MVVM" src="https://img.shields.io/badge/Architecture-MVVM-orange"/>
+  
   [![CodeFactor](https://www.codefactor.io/repository/github/samyak2403/repostore/badge)](https://www.codefactor.io/repository/github/samyak2403/repostore)
+  
 </p>
 
 <p align="center">
