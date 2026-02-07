@@ -12,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.samyak.repostore.R
 import com.samyak.repostore.RepoStoreApp
 import com.samyak.repostore.databinding.ActivityGithubTokenBinding
+import androidx.core.net.toUri
 
 class GitHubTokenActivity : AppCompatActivity() {
 
@@ -61,7 +62,7 @@ class GitHubTokenActivity : AppCompatActivity() {
         }
 
         binding.btnCreateToken.setOnClickListener {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/settings/tokens/new"))
+            val intent = Intent(Intent.ACTION_VIEW, "https://github.com/settings/tokens/new".toUri())
             startActivity(intent)
         }
     }

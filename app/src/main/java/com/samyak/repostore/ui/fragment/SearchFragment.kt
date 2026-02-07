@@ -5,6 +5,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
@@ -14,7 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.samyak.repostore.ui.widget.ShimmerFrameLayout
 import com.samyak.repostore.R
@@ -68,7 +69,16 @@ class SearchFragment : Fragment() {
         observeViewModel()
 
         // Focus search field
-        binding.etSearch.requestFocus()
+        binding.etSearch.post {
+            binding.etSearch.requestFocus()
+
+            val controller = WindowCompat.getInsetsController(
+                requireActivity().window,
+                binding.etSearch
+            )
+
+            controller.show(WindowInsetsCompat.Type.ime())
+        }
     }
 
     private fun setupSearchBar() {
