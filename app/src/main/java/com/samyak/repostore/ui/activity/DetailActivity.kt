@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -34,6 +35,7 @@ import com.samyak.repostore.ui.viewmodel.DetailViewModelFactory
 import com.samyak.repostore.util.AppInstaller
 import com.samyak.repostore.util.ApkArchitectureHelper
 import com.samyak.repostore.ui.widget.ShimmerFrameLayout
+import com.samyak.repostore.util.ApkSelectionResult
 import com.samyak.repostore.util.RateLimitDialog
 import com.samyak.repostore.util.VersionComparator
 import io.noties.markwon.Markwon
@@ -386,13 +388,32 @@ class DetailActivity : AppCompatActivity() {
                 tvReleaseDate.text = formatDate(release.publishedAt)
 
                 // Find best APK for device architecture (arm64-v8a, armeabi-v7a, x86_64, x86)
-                val apkAsset = ApkArchitectureHelper.selectBestApk(release.assets)
+                when (val selection = ApkArchitectureHelper.selectBestApk(release.assets)) {
+                    is ApkSelectionResult.NoApkFound -> {
+                        Log.d(TAG, "No APK assets found")
+                        currentApkAsset = null
+                    }
+                    is ApkSelectionResult.Single -> {
+                        Log.d(TAG, "Single APK found: ${selection.asset.name}")
+                        currentApkAsset = selection.asset
+                    }
+                    is ApkSelectionResult.ExactMatch -> {
+                        Log.d(TAG, "Found exact match for ${selection.abi}: ${selection.asset.name}")
+                        currentApkAsset = selection.asset
+                    }
+                    is ApkSelectionResult.Universal -> {
+                        Log.d(TAG, "Found universal APK: ${selection.asset.name}")
+                        currentApkAsset = selection.asset
+                    }
+                    is ApkSelectionResult.Fallback -> {
+                        Log.d(TAG, "No architecture match, using first APK: ${selection.asset.name}")
+                        currentApkAsset = selection.asset
+                    }
+                }
 
-                if (apkAsset != null) {
-                    currentApkAsset = apkAsset
+                if (currentApkAsset != null) {
                     setupInstallButton(repo.name, repo.owner.login)
                 } else {
-                    currentApkAsset = null
                     btnDownload.text = getString(R.string.view_release)
                     btnDownload.setOnClickListener {
                         openUrl(release.htmlUrl)
@@ -521,6 +542,7 @@ class DetailActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val TAG = "DetailActivity"
         private const val EXTRA_OWNER = "owner"
         private const val EXTRA_REPO = "repo"
 
