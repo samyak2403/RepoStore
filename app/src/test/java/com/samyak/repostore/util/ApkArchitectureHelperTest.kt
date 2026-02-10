@@ -24,7 +24,7 @@ class ApkArchitectureHelperTest {
     }
 
     @Test
-    fun selectBestApk_prefersPrimaryAbiMatch() {
+    fun selectBestApk_returnsExactMatchForPrimaryAbi() {
         setSupportedAbis("arm64-v8a", "armeabi-v7a")
 
         val assets = listOf(
@@ -41,7 +41,7 @@ class ApkArchitectureHelperTest {
     }
 
     @Test
-    fun selectBestApk_fallsBackToSecondaryAbiMatch() {
+    fun selectBestApk_returnsExactMatchForSecondaryAbi() {
         setSupportedAbis("x86_64", "arm64-v8a")
 
         val assets = listOf(
@@ -57,7 +57,7 @@ class ApkArchitectureHelperTest {
     }
 
     @Test
-    fun selectBestApk_usesUniversalWhenNoArchMatch() {
+    fun selectBestApk_returnsUniversalWhenNoArchMatch() {
         setSupportedAbis("x86_64")
 
         val assets = listOf(
@@ -72,7 +72,7 @@ class ApkArchitectureHelperTest {
     }
 
     @Test
-    fun selectBestApk_fallsBackToFirstApkWhenNoMatch() {
+    fun selectBestApk_returnsFallbackWhenNoMatch() {
         setSupportedAbis("x86_64")
 
         val assets = listOf(
@@ -87,7 +87,7 @@ class ApkArchitectureHelperTest {
     }
 
     @Test
-    fun selectBestApk_returnsNullWhenNoApkAssets() {
+    fun selectBestApk_returnsNoApkFoundWhenNoApkAssets() {
         setSupportedAbis("arm64-v8a")
 
         val assets = listOf(
@@ -133,6 +133,20 @@ class ApkArchitectureHelperTest {
         setSupportedAbis("arm64-v8a")
 
         assertTrue(ApkArchitectureHelper.isApkCompatible("app-release.apk"))
+    }
+
+    @Test
+    fun selectBestApk_returnsSingleWhenOnlyOneApk() {
+        setSupportedAbis("arm64-v8a")
+
+        val assets = listOf(
+            apk("app-release.apk")
+        )
+
+        val selected = ApkArchitectureHelper.selectBestApk(assets)
+
+        assertTrue(selected is ApkSelectionResult.Single)
+        assertEquals("app-release.apk", (selected as ApkSelectionResult.Single).asset.name)
     }
 
     private fun apk(name: String): ReleaseAsset = ReleaseAsset(
