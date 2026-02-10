@@ -1,7 +1,6 @@
 package com.samyak.repostore.util
 
 import android.os.Build
-import android.util.Log
 import com.samyak.repostore.data.model.ReleaseAsset
 
 /**
@@ -9,8 +8,6 @@ import com.samyak.repostore.data.model.ReleaseAsset
  * Supports: arm64-v8a (aarch64), armeabi-v7a (arm), x86_64, x86
  */
 object ApkArchitectureHelper {
-    
-    private const val TAG = "ApkArchitectureHelper"
     
     /**
      * Mapping of device ABIs to common APK naming patterns
@@ -30,15 +27,15 @@ object ApkArchitectureHelper {
     /**
      * Get device's supported ABIs in priority order
      */
-    fun getDeviceAbis(): List<String> {
-        return Build.SUPPORTED_ABIS.toList()
+    private fun getDeviceAbis(): List<String> {
+        return AbiProvider.supportedAbis().toList()
     }
     
     /**
      * Get the primary (best) ABI for this device
      */
-    fun getPrimaryAbi(): String {
-        return Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
+    private fun getPrimaryAbi(): String {
+        return AbiProvider.supportedAbis().firstOrNull() ?: "arm64-v8a"
     }
     
     /**
@@ -50,43 +47,36 @@ object ApkArchitectureHelper {
      * 3. Universal APK
      * 4. First APK found (fallback)
      */
-    fun selectBestApk(assets: List<ReleaseAsset>): ReleaseAsset? {
+    fun selectBestApk(assets: List<ReleaseAsset>): ApkSelectionResult {
         val apkAssets = assets.filter { it.name.lowercase().endsWith(".apk") }
         
         if (apkAssets.isEmpty()) {
-            Log.d(TAG, "No APK assets found")
-            return null
+            return ApkSelectionResult.NoApkFound
         }
         
         if (apkAssets.size == 1) {
-            Log.d(TAG, "Single APK found: ${apkAssets[0].name}")
-            return apkAssets[0]
+            return ApkSelectionResult.Single(apkAssets[0])
         }
         
         val deviceAbis = getDeviceAbis()
-        Log.d(TAG, "Device ABIs: $deviceAbis")
-        Log.d(TAG, "Available APKs: ${apkAssets.map { it.name }}")
         
         // Try to find exact architecture match in priority order
         for (abi in deviceAbis) {
             val patterns = abiPatterns[abi] ?: continue
             val matchedApk = findApkByPatterns(apkAssets, patterns)
             if (matchedApk != null) {
-                Log.d(TAG, "Found exact match for $abi: ${matchedApk.name}")
-                return matchedApk
+                return ApkSelectionResult.ExactMatch(abi, matchedApk)
             }
         }
         
         // Try universal APK
         val universalApk = findApkByPatterns(apkAssets, universalPatterns)
         if (universalApk != null) {
-            Log.d(TAG, "Found universal APK: ${universalApk.name}")
-            return universalApk
+            return ApkSelectionResult.Universal(universalApk)
         }
         
         // Fallback: return first APK (likely a universal build without label)
-        Log.d(TAG, "No architecture match, using first APK: ${apkAssets[0].name}")
-        return apkAssets[0]
+        return ApkSelectionResult.Fallback(apkAssets[0])
     }
     
     /**
@@ -156,4 +146,16 @@ object ApkArchitectureHelper {
         
         return !hasArchPattern
     }
+}
+
+internal object AbiProvider {
+    fun supportedAbis(): Array<String> = Build.SUPPORTED_ABIS
+}
+
+sealed class ApkSelectionResult {
+    data object NoApkFound : ApkSelectionResult()
+    data class Single(val asset: ReleaseAsset) : ApkSelectionResult()
+    data class ExactMatch(val abi: String, val asset: ReleaseAsset) : ApkSelectionResult()
+    data class Universal(val asset: ReleaseAsset) : ApkSelectionResult()
+    data class Fallback(val asset: ReleaseAsset) : ApkSelectionResult()
 }
