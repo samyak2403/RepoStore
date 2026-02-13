@@ -218,15 +218,37 @@
 
             </LinearLayout>
 
-            <!-- Install Button -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_download"
+            <!-- Reset install button margins as it's now inside linear layout -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                android:text="@string/install"
-                app:cornerRadius="24dp" />
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_uninstall"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/uninstall"
+                    android:textColor="?attr/colorError"
+                    app:strokeColor="?attr/colorError"
+                    app:cornerRadius="24dp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_download"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="@string/install"
+                    app:cornerRadius="24dp" />
+
+            </LinearLayout>
 
             <!-- GitHub Button -->
             <com.google.android.material.button.MaterialButton

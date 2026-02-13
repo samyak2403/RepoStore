@@ -517,6 +517,12 @@ class DetailActivity : AppCompatActivity() {
                 false
             }
             
+            // Show uninstall button
+            binding.btnUninstall.visibility = View.VISIBLE
+            binding.btnUninstall.setOnClickListener {
+                appInstaller.uninstall(installedPackageName!!)
+            }
+            
             if (hasUpdate) {
                 // Update available - show Update button
                 binding.btnDownload.text = getString(R.string.update)
@@ -534,6 +540,7 @@ class DetailActivity : AppCompatActivity() {
             }
         } else {
             // Not installed - show Install button
+            binding.btnUninstall.visibility = View.GONE
             binding.btnDownload.text = getString(R.string.install)
             binding.btnDownload.setOnClickListener {
                 currentApkAsset?.let { startDownload(it) }

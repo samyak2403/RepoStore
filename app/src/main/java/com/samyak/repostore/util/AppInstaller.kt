@@ -589,6 +589,25 @@ class AppInstaller private constructor(private val context: Context) {
     }
 
     /**
+     * Uninstall app by package name
+     */
+    fun uninstall(packageName: String) {
+        try {
+            Log.d(TAG, "Requesting uninstall for: $packageName")
+            val intent = Intent(Intent.ACTION_DELETE).apply {
+                data = Uri.parse("package:$packageName")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Uninstall error", e)
+            try {
+                android.widget.Toast.makeText(context, "Uninstall failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (ignored: Exception) {}
+        }
+    }
+
+    /**
      * Find installed package by repo/owner name
      */
     fun findPackage(repoName: String, ownerName: String): String? {

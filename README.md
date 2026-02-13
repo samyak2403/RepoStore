@@ -97,7 +97,7 @@ RepoStore is a native Android app that turns GitHub releases into a clean, Play 
 
 ---
 
-## � How doens an app appear in RepoStore?
+## ❓ How does an app appear in RepoStore?
 
 RepoStore does not use any private indexing or manual curation. Your project can appear automatically if it follows these conditions:
 
