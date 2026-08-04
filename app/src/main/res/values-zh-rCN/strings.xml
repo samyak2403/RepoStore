@@ -87,7 +87,7 @@
     <string name="security_flagged_detail">%1$d/%2$d 个引擎标记了此文件</string>
     <string name="security_integrity">校验和已验证</string>
     <string name="security_source">GitHub 发布版本</string>
-    <string name="security_unknown">GitHub 发布版本</string>
+    <string name="security_unknown">未知</string>
     <string name="security_powered_by">安全状态由 VirusTotal 提供支持</string>
     <string name="security_info_scan">已由 VirusTotal 扫描，未检测到威胁。</string>
     <string name="security_info_integrity">可通过 GitHub 上发布的 SHA-256 校验和验证完整性。</string>
@@ -172,7 +172,7 @@
     <string name="update_all">全部更新</string>
     <string name="checking_for_updates">正在检查更新…</string>
     <string name="no_updates_available">您已是最新版本</string>
-    <string name="no_updates_available_hint">通过 RepoStore 安装且有可用更新的应用将显示在此处</string>
+    <string name="no_updates_available_hint">通过 Repo Store 安装且有可用更新的应用将显示在此处</string>
     <string name="updates_check_failed">无法检查更新</string>
     <string name="updating_app">正在更新 %1$s…</string>
 
@@ -276,19 +276,19 @@
     <string name="enable_mirror_proxy">启用镜像代理</string>
     <string name="proxy_url_hint">代理 URL（例如 https://gh-proxy.com/）</string>
     <string name="popular_proxies">热门代理</string>
-    <string name="multi_part_download">多部分下载</string>
+    <string name="multi_part_download">分段下载</string>
     <string name="multi_part_description">使用多个连接下载文件以获得更快的速度。</string>
-    <string name="enable_multi_part">启用多部分下载</string>
+    <string name="enable_multi_part">启用分段下载</string>
     <string name="download_threads">下载线程数</string>
     <string name="thread_count_hint">较高的值可能会提高速度，但会使用更多资源 (1-32)</string>
-    <string name="download_settings_info">镜像代理通过代理服务器转换 GitHub URL。多部分下载将文件分割成块以进行并行下载。</string>
+    <string name="download_settings_info">镜像代理通过代理服务器转换 GitHub URL。分段下载将文件分割成块以进行并行下载。</string>
     <string name="download_speed_format">%s/秒</string>
-    <string name="select_variant">选择版本</string>
-    <string name="compatible">兼容的</string>
-    <string name="incompatible">不相容</string>
+    <string name="select_variant">选择变体</string>
+    <string name="compatible">兼容</string>
+    <string name="incompatible">不兼容</string>
     <string name="recommended">推荐</string>
     <string name="app_mismatch_title">应用程序不匹配？</string>
-    <string name="app_mismatch_message">RepoStore 将此存储库与已安装的应用程序匹配：%1$s (%2$s).\n\n如果这不是同一个应用程序，您仍然可以选择从此存储库安装 APK。</string>
+    <string name="app_mismatch_message">Repo Store 将此存储库与已安装的应用程序匹配：%1$s (%2$s).\n\n如果这不是同一个应用程序，您仍然可以选择从此存储库安装 APK。</string>
     <string name="install_anyway">继续安装</string>
     <string name="forget_mapping">解除匹配</string>
     <string name="contributors">贡献者</string>
