@@ -3,12 +3,12 @@
     <string name="app_name">Repo Store</string>
 
     <!-- Navigation -->
-    <string name="home">家</string>
+    <string name="home">首页</string>
     <string name="games">游戏</string>
     <string name="apps">应用程序</string>
-    <string name="trending">流行趋势</string>
+    <string name="trending">热门</string>
     <string name="search">搜索</string>
-    <string name="profile">轮廓</string>
+    <string name="profile">个人资料</string>
     <string name="back">后退</string>
 
     <!-- Search -->
@@ -25,11 +25,11 @@
     <string name="reset">重置</string>
     <string name="results_count">%d 结果</string>
     <string name="any_language">任何语言</string>
-    <string name="any_stars">任何星星</string>
-    <string name="min_stars_format">%d+ 星星</string>
+    <string name="any_stars">任何星标数</string>
+    <string name="min_stars_format">%d+ 星标</string>
     <string name="best_match">最佳匹配</string>
-    <string name="most_stars">最多星星</string>
-    <string name="most_forks">大多数叉子</string>
+    <string name="most_stars">最多星标</string>
+    <string name="most_forks">最多复刻</string>
     <string name="recently_updated_sort">最近更新</string>
     <string name="any_time">任何时间</string>
     <string name="last_week">上星期</string>
@@ -58,14 +58,17 @@
     <string name="about_this_app">关于这个应用程序</string>
     <string name="screenshots">截图</string>
     <string name="screenshot">截屏</string>
-    <string name="stars">星星</string>
-    <string name="forks">叉子</string>
+    <string name="stars">星标</string>
+    <string name="forks">复刻</string>
     <string name="language">语言</string>
+    <string name="downloads">下载量</string>
+    <string name="hinglish">Hinglish</string>
+    <string name="search_language">搜索语言…</string>
     <string name="last_updated">最后更新</string>
     <string name="updated_on">更新于</string>
     <string name="latest_release">最新版本</string>
-    <string name="whats_new">什么\'是新的</string>
-    <string name="readme">自述文件</string>
+    <string name="whats_new">最新动态</string>
+    <string name="readme">自述文件 (README)</string>
     <string name="download">下载</string>
     <string name="install">安装</string>
     <string name="download_apk">下载APK</string>
@@ -76,8 +79,32 @@
     <string name="no_release_notes">没有发行说明</string>
     <string name="archived">已存档</string>
 
+    <!-- Security badge (VirusTotal) -->
+    <string name="security_checking">正在检查安全性…</string>
+    <string name="security_verified">已验证安全</string>
+    <string name="security_verified_detail">已验证安全 · %1$d 个引擎</string>
+    <string name="security_flagged">安全警告</string>
+    <string name="security_flagged_detail">%1$d/%2$d 个引擎标记了此文件</string>
+    <string name="security_integrity">校验和已验证</string>
+    <string name="security_source">GitHub 发布版本</string>
+    <string name="security_unknown">未知</string>
+    <string name="security_powered_by">安全状态由 VirusTotal 提供支持</string>
+    <string name="security_info_scan">已由 VirusTotal 扫描，未检测到威胁。</string>
+    <string name="security_info_integrity">可通过 GitHub 上发布的 SHA-256 校验和验证完整性。</string>
+    <string name="security_info_source">直接从开发者的官方 GitHub 发布版本安装。</string>
+    <string name="security_label">安全</string>
+    <string name="security_stat_checking">…</string>
+    <string name="security_stat_safe">安全</string>
+    <string name="security_stat_verified">已验证</string>
+    <string name="security_stat_warning">警告</string>
+    <string name="security_stat_source">GitHub</string>
+
+    <!-- Install unknown apps permission -->
+    <string name="install_permission_prompt">允许此应用安装应用，然后返回以继续。</string>
+    <string name="install_permission_required">安装应用需要权限。请在设置中启用该权限后重试。</string>
+
     <!-- Tags -->
-    <string name="tag_new">新的</string>
+    <string name="tag_new">新</string>
     <string name="tag_updated">更新</string>
     <string name="tag_archived">存档</string>
 
@@ -92,13 +119,13 @@
     <!-- Developer -->
     <string name="repositories">存储库</string>
     <string name="repositories_count">%d 存储库</string>
-    <string name="view_github_profile">查看 GitHub 档案</string>
+    <string name="view_github_profile">查看 GitHub 个人资料</string>
 
     <!-- Settings -->
     <string name="settings">设置</string>
     <string name="github_token">GitHub 个人访问令牌</string>
     <string name="github_token_desc">添加令牌以将 API 速率限制从每小时 60 个请求提高到 5000 个请求。</string>
-    <string name="enter_token">输入您的 GitHub 代币</string>
+    <string name="enter_token">输入您的 GitHub 令牌</string>
     <string name="save_token">保存令牌</string>
     <string name="clear_token">清除令牌</string>
     <string name="create_token_on_github">在 GitHub 上创建令牌</string>
@@ -112,9 +139,9 @@
     <string name="token_configured">令牌已配置</string>
     
     <!-- Developer Info -->
-    <string name="developer">开发商</string>
-    <string name="followers">追随者</string>
-    <string name="following">下列的</string>
+    <string name="developer">开发者</string>
+    <string name="followers">关注者</string>
+    <string name="following">正在关注</string>
     
     <!-- Download & Install -->
     <string name="downloading">正在下载...</string>
@@ -138,6 +165,24 @@
     <string name="update">更新</string>
     <string name="update_available">可用更新</string>
     <string name="uninstall">卸载</string>
+
+    <!-- App Updates screen -->
+    <string name="app_updates">应用更新</string>
+    <string name="available_updates">可用更新 (%1$d)</string>
+    <string name="update_all">全部更新</string>
+    <string name="checking_for_updates">正在检查更新…</string>
+    <string name="no_updates_available">您已是最新版本</string>
+    <string name="no_updates_available_hint">通过 Repo Store 安装且有可用更新的应用将显示在此处</string>
+    <string name="updates_check_failed">无法检查更新</string>
+    <string name="updating_app">正在更新 %1$s…</string>
+
+    <!-- Update notifications -->
+    <string name="update_notification_channel_name">应用更新</string>
+    <string name="update_notification_channel_desc">当您安装的应用有可用更新时通知您</string>
+    <string name="update_notification_title">有可用更新：%1$s</string>
+    <string name="update_notification_text">%1$s → %2$s。点击更新。</string>
+    <string name="update_notification_summary_title">有可用更新</string>
+    <string name="update_notification_summary_text">%1$d 个应用更新可用</string>
     
     <!-- GitHub Sign In -->
     <string name="github_sign_in">使用 GitHub 登录</string>
@@ -151,7 +196,8 @@
     <string name="waiting_for_authorization">等待授权...</string>
     <string name="signed_in_successfully">登录成功！</string>
     <string name="signed_in">已登录</string>
-    <string name="signed_in_as">以 %s 身份登录</string>
+    <string name="signed_in_as">已登录为 %s</string>
+    <string name="user_handle">\@%s</string>
     <string name="rate_limit_increased">API 速率限制提高至 5,000 个请求/小时</string>
     <string name="sign_out">登出</string>
     <string name="signed_out">已退出</string>
@@ -161,16 +207,16 @@
     <string name="something_went_wrong">出了点问题</string>
     <string name="user">@用户</string>
     <string name="rate_limit_exceeded_title">超出速率限制</string>
-    <string name="rate_limit_exceeded_message">您\' 超出了 GitHub API 速率限制（60 个请求/小时）。\n\n 使用 GitHub 登录，可免费将您的限制提高到 5,000 个请求/小时！</string>
-    <string name="rate_limit_exceeded_signed_in">You\' 已超出经过身份验证的速率限制（5,000 个请求/小时）。请等待几分钟，然后重试。</string>
+    <string name="rate_limit_exceeded_message">您已超出 GitHub API 速率限制（60 个请求/小时）。\n\n使用 GitHub 登录，可免费将您的限制提高到 5,000 个请求/小时！</string>
+    <string name="rate_limit_exceeded_signed_in">您已超出经过身份验证的速率限制（5,000 个请求/小时）。请等待几分钟后再重试。</string>
     
     <!-- Donate -->
-    <string name="donate">捐</string>
+    <string name="donate">捐赠</string>
     <string name="support_developer">支持开发者</string>
     <string name="donate_description">如果您发现此应用程序有用，请考虑通过小额捐款支持开发。</string>
     <string name="scan_qr_code">扫描二维码支付</string>
     <string name="upi_qr_code">UPI二维码</string>
-    <string name="upi_id">统一识别​​码</string>
+    <string name="upi_id">UPI ID</string>
     <string name="copy">复制</string>
     <string name="upi_id_copied">UPI ID 已复制到剪贴板</string>
     <string name="thank_you_message">感谢您的支持！ ❤️</string>
@@ -185,6 +231,10 @@
     <!-- Open Source Licenses -->
     <string name="open_source_licenses">开源许可证</string>
     <string name="source_code">源代码</string>
+
+    <!-- Telegram -->
+    <string name="join_telegram">加入 Telegram</string>
+    <string name="join_telegram_subtitle">加入我们的频道以获取更新</string>
     
     <!-- Dynamic content format strings -->
     <string name="download_progress">%1$s (%2$s/%3$s)</string>
@@ -196,45 +246,51 @@
     
     <!-- My Apps -->
     <string name="my_apps">我的应用程序</string>
-    <string name="no_favorite_apps">还没有最喜欢的应用程序</string>
+    <string name="no_favorite_apps">还没有收藏的应用</string>
     <string name="no_favorite_apps_hint">点击任何应用程序上的心形图标即可将其添加到此处</string>
     <string name="add_to_favorites">添加到收藏夹</string>
     <string name="remove_from_favorites">从收藏夹中删除</string>
     <string name="added_to_favorites">已添加至收藏夹</string>
     <string name="removed_from_favorites">已从收藏夹中删除</string>
-    <string name="favorite_apps">最喜欢的应用程序</string>
+    <string name="favorite_apps">收藏的应用</string>
+    <string name="export_to_json">导出为 JSON</string>
+    <string name="import_from_json">从 JSON 导入</string>
+    <string name="export_successful">导出成功</string>
+    <string name="import_successful">导入成功</string>
+    <string name="export_failed">导出失败</string>
+    <string name="import_failed">导入失败</string>
     <string name="no_installed_apps">没有安装的应用程序</string>
     <string name="no_installed_apps_hint">您从收藏夹安装的应用程序将显示在此处</string>
     
     <!-- Appearance -->
-    <string name="appearance">外貌</string>
+    <string name="appearance">外观</string>
     <string name="theme_system">系统</string>
     <string name="theme_for_you">为你</string>
-    <string name="theme_dark">黑暗的</string>
-    <string name="theme_light">光</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_light">浅色</string>
     
     <!-- Download Settings -->
     <string name="download_settings">下载设置</string>
-    <string name="proxy">代理人</string>
+    <string name="proxy">代理</string>
     <string name="mirror_proxy_description">对于GitHub被屏蔽的国家或地区，请使用代理下载。</string>
     <string name="enable_mirror_proxy">启用镜像代理</string>
     <string name="proxy_url_hint">代理 URL（例如 https://gh-proxy.com/）</string>
     <string name="popular_proxies">热门代理</string>
-    <string name="multi_part_download">多部分下载</string>
+    <string name="multi_part_download">分段下载</string>
     <string name="multi_part_description">使用多个连接下载文件以获得更快的速度。</string>
-    <string name="enable_multi_part">启用多部分下载</string>
-    <string name="download_threads">下载主题</string>
+    <string name="enable_multi_part">启用分段下载</string>
+    <string name="download_threads">下载线程数</string>
     <string name="thread_count_hint">较高的值可能会提高速度，但会使用更多资源 (1-32)</string>
-    <string name="download_settings_info">镜像代理通过代理服务器转换 GitHub URL。多部分下载将文件分割成块以进行并行下载。</string>
+    <string name="download_settings_info">镜像代理通过代理服务器转换 GitHub URL。分段下载将文件分割成块以进行并行下载。</string>
     <string name="download_speed_format">%s/秒</string>
-    <string name="select_variant">选择版本</string>
-    <string name="compatible">兼容的</string>
-    <string name="incompatible">不相容</string>
-    <string name="recommended">受到推崇的</string>
+    <string name="select_variant">选择变体</string>
+    <string name="compatible">兼容</string>
+    <string name="incompatible">不兼容</string>
+    <string name="recommended">推荐</string>
     <string name="app_mismatch_title">应用程序不匹配？</string>
-    <string name="app_mismatch_message">RepoStore 将此存储库与已安装的应用程序匹配：%1$s (%2$s).\n\n如果这不是同一个应用程序，您仍然可以选择从此存储库安装 APK。</string>
-    <string name="install_anyway">无论如何安装</string>
-    <string name="forget_mapping">忘记映射</string>
+    <string name="app_mismatch_message">Repo Store 将此存储库与已安装的应用程序匹配：%1$s (%2$s).\n\n如果这不是同一个应用程序，您仍然可以选择从此存储库安装 APK。</string>
+    <string name="install_anyway">继续安装</string>
+    <string name="forget_mapping">解除匹配</string>
     <string name="contributors">贡献者</string>
     <string name="no_apk_variants_available">没有可用的 APK 变体</string>
     <string name="chip_ghproxy" translatable="false">gh-proxy.com</string>
@@ -255,7 +311,7 @@
     <string name="cat_name_clock">钟</string>
     <string name="cat_name_cloud_storage">云存储和文件同步</string>
     <string name="cat_name_connectivity">连接性</string>
-    <string name="cat_name_contact">接触</string>
+    <string name="cat_name_contact">联系人</string>
     <string name="cat_name_development">发展</string>
     <string name="cat_name_dns_hosts">DNS 和主机</string>
     <string name="cat_name_draw">画</string>
@@ -286,7 +342,7 @@
     <string name="cat_name_music_practice">音乐练习工具</string>
     <string name="cat_name_navigation">导航</string>
     <string name="cat_name_network_analyzer">网络分析仪</string>
-    <string name="cat_name_news">消息</string>
+    <string name="cat_name_news">新闻</string>
     <string name="cat_name_note">笔记</string>
     <string name="cat_name_online_media_player">在线媒体播放器</string>
     <string name="cat_name_pass_wallet">通行证钱包</string>
@@ -319,6 +375,6 @@
     <string name="cat_name_weather">天气</string>
     <string name="cat_name_workout">锻炼</string>
     <string name="cat_name_writing">写作</string>
-    <string name="cat_name_productivity">生产率</string>
+    <string name="cat_name_productivity">生产力</string>
     <string name="cat_name_open_source">开源</string>
     <string name="cat_name_trending">流行趋势</string></resources>
