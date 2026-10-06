@@ -1,9 +1,10 @@
 package com.samyak.repostore.data.api
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.samyak.repostore.data.auth.GitHubAuth
 import okhttp3.Cache
-import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -47,6 +48,22 @@ object RetrofitClient {
         return githubToken
     }
 
+    /**
+     * Whether the device currently has no usable network.
+     *
+     * Used to decide if a stale cached response may be served (offline) or if the
+     * request must revalidate with the server (online).
+     */
+    private fun isOffline(): Boolean {
+        val context = appContext ?: return false
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = manager.activeNetwork ?: return true
+        val capabilities = manager.getNetworkCapabilities(network) ?: return true
+        return !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ||
+            !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BASIC
     }
@@ -74,29 +91,11 @@ object RetrofitClient {
 
                 chain.proceed(requestBuilder.build())
             }
-            // Cache interceptor - cache responses for 5 minutes
-            .addNetworkInterceptor { chain ->
-                val response = chain.proceed(chain.request())
-                val cacheControl = CacheControl.Builder()
-                    .maxAge(5, TimeUnit.MINUTES)
-                    .build()
-                response.newBuilder()
-                    .header("Cache-Control", cacheControl.toString())
-                    .removeHeader("Pragma")
-                    .build()
-            }
-            // Offline cache interceptor
-            .addInterceptor { chain ->
-                var request = chain.request()
-                // If offline, use cache for up to 7 days
-                val cacheControl = CacheControl.Builder()
-                    .maxStale(7, TimeUnit.DAYS)
-                    .build()
-                request = request.newBuilder()
-                    .cacheControl(cacheControl)
-                    .build()
-                chain.proceed(request)
-            }
+            // Responses stay fresh for 5 minutes; past that, revalidate with GitHub.
+            .addNetworkInterceptor(CacheInterceptors.freshnessInterceptor())
+            // Reuse the cache only while offline: online requests must revalidate so a newly
+            // published release or an edited README/description is never served from disk.
+            .addInterceptor(CacheInterceptors.stalePolicyInterceptor(::isOffline))
             // Retry interceptor for rate limiting
             .addInterceptor { chain ->
                 var request = chain.request()

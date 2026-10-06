@@ -427,13 +427,11 @@ class GitHubRepository(private val repoDao: RepoDao) {
 
     suspend fun getRepoDetails(owner: String, repoName: String): Result<GitHubRepo> = withContext(Dispatchers.IO) {
         try {
-            // Check cache first
-            val cached = repoDao.getRepoByFullName("$owner/$repoName")
-            if (cached != null) {
-                // Return cached, but also try to update in background
-                return@withContext Result.success(cached)
-            }
-
+            // Always revalidate with GitHub. Returning the local row directly kept the
+            // description the app first saw — editing the repository description upstream
+            // never reached the detail screen. OkHttp serves this call from its cache
+            // while the response is still fresh and from disk while offline, so nothing
+            // is wasted on the hot path.
             val repo = api.getRepository(owner, repoName)
             repoDao.insertRepo(repo)
             Result.success(repo)

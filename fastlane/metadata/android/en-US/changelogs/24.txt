@@ -1,0 +1,10 @@
+RepoStore no longer serves a week-old cache:
+
+* The release list, README, repository description and every other GitHub response could
+  be answered from the on-disk cache for up to 7 days without ever asking the server, so a
+  newly published release (and an edited description or README) kept showing the old
+  content until the entry expired. The stale window now applies only when the device is
+  actually offline; online, responses revalidate against GitHub as normal.
+* The app detail screen revalidates the repository instead of always drawing the first
+  copy it ever stored, so a description edited upstream shows up on the next visit.
+* All previous features unchanged.
