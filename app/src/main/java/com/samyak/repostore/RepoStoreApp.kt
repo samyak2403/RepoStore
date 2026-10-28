@@ -21,7 +21,8 @@ class RepoStoreApp : Application() {
     }
 
     val database by lazy { AppDatabase.getDatabase(this) }
-    val repository by lazy { GitHubRepository(database.repoDao()) }
+    val cachedRepoDao by lazy { database.cachedRepoDao() }
+    val repository by lazy { GitHubRepository(database.repoDao(), database.cachedRepoDao()) }
     val favoriteAppDao by lazy { database.favoriteAppDao() }
     val installedAppMappingDao by lazy { database.installedAppMappingDao() }
 

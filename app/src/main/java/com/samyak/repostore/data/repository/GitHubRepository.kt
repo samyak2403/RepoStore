@@ -1,6 +1,9 @@
 package com.samyak.repostore.data.repository
 
 import com.samyak.repostore.data.api.RetrofitClient
+import android.util.Log
+import com.samyak.repostore.data.db.CachedRepoDao
+import com.samyak.repostore.data.db.CachedRepoEntity
 import com.samyak.repostore.data.db.RepoDao
 import com.samyak.repostore.data.model.*
 import com.samyak.repostore.util.GitHubUrlParser
@@ -17,7 +20,14 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.ConcurrentHashMap
 
-class GitHubRepository(private val repoDao: RepoDao) {
+class GitHubRepository(
+    private val repoDao: RepoDao,
+    private val cachedRepoDao: CachedRepoDao? = null
+) {
+
+    companion object {
+        private const val TAG = "GitHubRepository"
+    }
 
     private val api = RetrofitClient.api
 
@@ -37,6 +47,43 @@ class GitHubRepository(private val repoDao: RepoDao) {
     private var lastFetchTime = 0L
     private val cacheValidityMs = 10 * 60 * 1000L // 10 minutes
     private val developerCacheValidityMs = 15 * 60 * 1000L // 15 minutes
+
+    private suspend fun cacheAppItems(items: List<AppItem>, categoryTag: String? = null) {
+        if (cachedRepoDao == null || items.isEmpty()) return
+        try {
+            val entities = items.map { CachedRepoEntity.fromAppItem(it, categoryTag) }
+            cachedRepoDao.upsertRepos(entities)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cache repository items", e)
+        }
+    }
+
+    private suspend fun getCachedAppItemsByCategory(categoryTag: String): List<AppItem> {
+        if (cachedRepoDao == null) return emptyList()
+        return try {
+            cachedRepoDao.getCachedReposByCategory(categoryTag).map { it.toAppItem() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private suspend fun getAllCachedAppItems(): List<AppItem> {
+        if (cachedRepoDao == null) return emptyList()
+        return try {
+            cachedRepoDao.getAllCachedRepos().map { it.toAppItem() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private suspend fun searchCachedAppItems(query: String): List<AppItem> {
+        if (cachedRepoDao == null) return emptyList()
+        return try {
+            cachedRepoDao.searchCachedRepos(query).map { it.toAppItem() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
     private val screenshotFolders = listOf(
         "screenshots", "screenshot", "images", "image", "assets",
@@ -129,13 +176,19 @@ class GitHubRepository(private val repoDao: RepoDao) {
 
             if (appItems.isNotEmpty()) {
                 repoDao.insertRepos(response.items)
+                cacheAppItems(appItems)
             }
             
             Result.success(appItems)
-        } catch (e: HttpException) {
-            handleHttpException(e)
         } catch (e: Exception) {
-            Result.failure(e)
+            val cached = searchCachedAppItems(query)
+            if (cached.isNotEmpty()) {
+                Result.success(cached)
+            } else if (e is HttpException) {
+                handleHttpException(e)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
@@ -197,6 +250,7 @@ class GitHubRepository(private val repoDao: RepoDao) {
             
             // Apply Play Store-like relevance scoring and sort
             val rankedItems = rankByRelevance(appItems, query)
+            cacheAppItems(rankedItems)
             
             Result.success(SearchResult(
                 items = rankedItems,
@@ -328,16 +382,49 @@ class GitHubRepository(private val repoDao: RepoDao) {
             // Filter to only repos with APK releases
             val appItems = filterReposWithApk(response.items)
 
-            if (appItems.isNotEmpty() && page == 1) {
-                repoDao.clearAll()
-                repoDao.insertRepos(response.items)
+            if (appItems.isNotEmpty()) {
+                if (page == 1) {
+                    repoDao.clearAll()
+                    repoDao.insertRepos(response.items)
+                }
+                cacheAppItems(appItems, "FEATURED")
             }
 
             Result.success(appItems)
-        } catch (e: HttpException) {
-            handleHttpException(e)
         } catch (e: Exception) {
-            Result.failure(e)
+            val cached = getCachedAppItemsByCategory("FEATURED").ifEmpty { getAllCachedAppItems() }
+            if (cached.isNotEmpty()) {
+                Result.success(cached)
+            } else if (e is HttpException) {
+                handleHttpException(e)
+            } else {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun getFeaturedApps(page: Int = 1): Result<List<AppItem>> = getPopularAndroidApps(page)
+
+    suspend fun getTrendingApps(page: Int = 1): Result<List<AppItem>> = getAppsByCategory(AppCategory.TRENDING, page)
+
+    suspend fun getRecentlyUpdatedApps(page: Int = 1): Result<List<AppItem>> = withContext(Dispatchers.IO) {
+        try {
+            val query = "android app topic:android"
+            val response = api.searchRepositories(query = query, sort = "updated", perPage = 30, page = page)
+            val appItems = filterReposWithApk(response.items)
+            if (appItems.isNotEmpty()) {
+                cacheAppItems(appItems, "RECENTLY_UPDATED")
+            }
+            Result.success(appItems)
+        } catch (e: Exception) {
+            val cached = getCachedAppItemsByCategory("RECENTLY_UPDATED").ifEmpty { getAllCachedAppItems() }
+            if (cached.isNotEmpty()) {
+                Result.success(cached)
+            } else if (e is HttpException) {
+                handleHttpException(e)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
@@ -380,6 +467,10 @@ class GitHubRepository(private val repoDao: RepoDao) {
                     }
 
                     if (allRepos.isEmpty()) {
+                        val cached = getCachedAppItemsByCategory("TRENDING").ifEmpty { getAllCachedAppItems() }
+                        if (cached.isNotEmpty()) {
+                            return@withContext Result.success(cached)
+                        }
                         return@withContext Result.success(emptyList())
                     }
 
@@ -388,6 +479,7 @@ class GitHubRepository(private val repoDao: RepoDao) {
 
                     if (appItems.isNotEmpty()) {
                         repoDao.insertRepos(allRepos)
+                        cacheAppItems(appItems, "TRENDING")
                     }
 
                     Result.success(appItems.sortedByDescending { it.repo.stars })
@@ -409,6 +501,10 @@ class GitHubRepository(private val repoDao: RepoDao) {
                     }
 
                     if (allRepos.isEmpty()) {
+                        val cached = getCachedAppItemsByCategory(category.name)
+                        if (cached.isNotEmpty()) {
+                            return@withContext Result.success(cached)
+                        }
                         return@withContext Result.success(emptyList())
                     }
 
@@ -417,14 +513,24 @@ class GitHubRepository(private val repoDao: RepoDao) {
 
                     if (appItems.isNotEmpty()) {
                         repoDao.insertRepos(allRepos)
+                        cacheAppItems(appItems, category.name)
                     }
                     
                     Result.success(appItems.sortedByDescending { it.repo.stars })
                 }
-            } catch (e: HttpException) {
-                handleHttpException(e)
             } catch (e: Exception) {
-                Result.failure(e)
+                val cached = if (category == AppCategory.TRENDING) {
+                    getCachedAppItemsByCategory("TRENDING").ifEmpty { getAllCachedAppItems() }
+                } else {
+                    getCachedAppItemsByCategory(category.name)
+                }
+                if (cached.isNotEmpty()) {
+                    Result.success(cached)
+                } else if (e is HttpException) {
+                    handleHttpException(e)
+                } else {
+                    Result.failure(e)
+                }
             }
         }
     }
