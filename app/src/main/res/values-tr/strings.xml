@@ -184,7 +184,7 @@
     <string name="source_code">Kaynak Kod</string>
     
     <!-- Dynamic content format strings -->
-    <string name="download_progress">%s (%s/%s)</string>
+    <string name="download_progress">%1$s (%2$s/%3$s)</string>
     <string name="download_starting">%%0</string>
     <string name="page_indicator">%1$d / %2$d</string>
     <string name="version_format">Sürüm %s</string>
