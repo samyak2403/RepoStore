@@ -15,7 +15,7 @@ interface GitHubApi {
     @GET("search/repositories")
     suspend fun searchRepositories(
         @Query("q") query: String,
-        @Query("sort") sort: String = "stars",
+        @Query("sort") sort: String? = null,
         @Query("order") order: String = "desc",
         @Query("per_page") perPage: Int = 30,
         @Query("page") page: Int = 1

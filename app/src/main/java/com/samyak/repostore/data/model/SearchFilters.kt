@@ -4,32 +4,34 @@ package com.samyak.repostore.data.model
  * Advanced search filters for GitHub repository search
  */
 data class SearchFilters(
+    val query: String = "",
     val sortBy: SortOption = SortOption.BEST_MATCH,
     val language: String? = null,
     val minStars: Int? = null,
     val hasReleases: Boolean = false, // Default: Show all repos (APK filter is opt-in)
+    val hasApk: Boolean = false,
     val includeArchived: Boolean = false,
     val updatedWithin: UpdatedWithin? = null,
-    val topics: List<String> = emptyList(), // Empty by default - searches ALL repos
+    val topics: List<String> = listOf("android"), // Default: Preserves "android" topic
     val searchInReadme: Boolean = true // Also search README content
 ) {
     /**
      * Build the GitHub search query string from filters
      * Optimized for Play Store-like relevance matching
      */
-    fun buildQuery(userQuery: String): String {
+    fun buildQuery(userQuery: String = query): String {
         val queryParts = mutableListOf<String>()
         
         // User's search term - search in name and description
-        if (userQuery.isNotBlank()) {
-            queryParts.add("$userQuery in:name,description")
+        val effectiveQuery = if (userQuery.isNotBlank()) userQuery.trim() else query.trim()
+        if (effectiveQuery.isNotBlank()) {
+            queryParts.add("$effectiveQuery in:name,description")
         }
         
-        // Add topic filters only if user specified them
-        if (topics.isNotEmpty()) {
-            topics.forEach { topic ->
-                queryParts.add("topic:$topic")
-            }
+        // Add topic filters - ensure "android" is preserved or defaulted when not explicitly overridden
+        val effectiveTopics = if (topics.isEmpty()) listOf("android") else topics
+        effectiveTopics.forEach { topic ->
+            queryParts.add("topic:$topic")
         }
         
         // Language filter

@@ -155,12 +155,15 @@ class GitHubRepository(private val repoDao: RepoDao) {
             
             // For "Best Match", pass null to use GitHub's relevance-based sorting
             // Otherwise, use the specified sort option
-            val sortBy = filters.sortBy.apiValue.ifEmpty { null }
+            val sortBy = when (filters.sortBy) {
+                SortOption.BEST_MATCH -> if (query.isNotBlank()) null else "stars"
+                else -> filters.sortBy.apiValue.ifEmpty { null }
+            }
             val order = "desc"
             
             val response = api.searchRepositories(
                 query = searchQuery,
-                sort = sortBy ?: "stars", // Default to stars for Best Match (GitHub's default)
+                sort = sortBy,
                 order = order,
                 perPage = 40,
                 page = page
@@ -172,7 +175,7 @@ class GitHubRepository(private val repoDao: RepoDao) {
             }
 
             // Filter to only repos with APK releases if required
-            val appItems = if (filters.hasReleases) {
+            val appItems = if (filters.hasReleases || filters.hasApk) {
                 val filtered = filterReposWithApk(response.items)
                 // If APK filtering returns empty but we have results, 
                 // fall back to showing unfiltered results so user sees something

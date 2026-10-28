@@ -279,7 +279,7 @@ class SearchFragment : Fragment() {
             getString(R.string.updated)
         }
 
-        binding.chipHasApk.isChecked = filters.hasReleases
+        binding.chipHasApk.isChecked = filters.hasReleases || filters.hasApk
 
         binding.chipReset.isVisible = viewModel.hasActiveFilters()
     }

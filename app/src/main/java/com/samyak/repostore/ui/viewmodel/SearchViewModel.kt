@@ -223,7 +223,7 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
     }
 
     fun toggleHasReleases(hasReleases: Boolean) {
-        val newFilters = _filters.value.copy(hasReleases = hasReleases)
+        val newFilters = _filters.value.copy(hasReleases = hasReleases, hasApk = hasReleases)
         searchWithFilters(newFilters)
     }
 
@@ -257,7 +257,7 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
                current.language != default.language ||
                current.minStars != default.minStars ||
                current.updatedWithin != default.updatedWithin ||
-               current.hasReleases != default.hasReleases
+               (current.hasReleases != default.hasReleases || current.hasApk != default.hasApk)
     }
 }
 
