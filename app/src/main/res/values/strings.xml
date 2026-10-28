@@ -267,6 +267,11 @@
     <string name="import_failed">Import failed</string>
     <string name="no_installed_apps">No installed apps</string>
     <string name="no_installed_apps_hint">Apps you install from your favorites will appear here</string>
+    <string name="all_installed">All Installed</string>
+    <string name="signature_mismatch_title">Update Incompatible</string>
+    <string name="signature_mismatch_message">The installed version has an incompatible signature (INSTALL_FAILED_UPDATE_INCOMPATIBLE). This happens when the app was previously installed from another source with a different key. To install this update, you must uninstall the existing app first.</string>
+    <string name="uninstall_and_reinstall">Uninstall</string>
+    <string name="version_installed_format">%1$s • Installed: %2$s</string>
     
     <!-- Appearance -->
     <string name="appearance">Appearance</string>

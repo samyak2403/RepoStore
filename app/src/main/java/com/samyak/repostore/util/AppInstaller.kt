@@ -743,7 +743,22 @@ class AppInstaller private constructor(private val context: Context) {
 
         // 3. Fallback: Token-Based Similarity Scan
         // Scans all apps and scores them based on token overlap with owner/repo
-        return findBestMatchingPackage(repoName, ownerName, expectedVersion)
+        val matchedPackage = findBestMatchingPackage(repoName, ownerName, expectedVersion)
+        if (matchedPackage != null) {
+            try {
+                val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
+                downloadScope.launch {
+                    dao.saveMapping(InstalledAppMapping(
+                        ownerName = ownerName,
+                        repoName = repoName,
+                        packageName = matchedPackage
+                    ))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "findPackage: Failed to cache matched package mapping", e)
+            }
+        }
+        return matchedPackage
     }
 
     /**

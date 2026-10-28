@@ -865,7 +865,13 @@ class DetailActivity : AppCompatActivity() {
                     is AppInstaller.InstallState.Error -> {
                         setDownloadButtonState(getString(R.string.install), true, formatAssetSubtitle(currentApkAsset))
                         binding.btnDownloadDropdown.isEnabled = true
-                        Toast.makeText(this@DetailActivity, state.message, Toast.LENGTH_SHORT).show()
+                        if (state.message.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE", ignoreCase = true) ||
+                            state.message.contains("signature", ignoreCase = true) ||
+                            state.message.contains("incompatible", ignoreCase = true)) {
+                            showSignatureMismatchDialog()
+                        } else {
+                            Toast.makeText(this@DetailActivity, state.message, Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
@@ -907,6 +913,9 @@ class DetailActivity : AppCompatActivity() {
             if (isInstalled && installedPackageName != null) {
                 // Check if update is available
                 val installedVersion = appInstaller.getInstalledVersion(installedPackageName!!)
+                if (installedVersion != null && currentReleaseTag != null) {
+                    binding.tvVersion.text = getString(R.string.version_installed_format, currentReleaseTag, installedVersion)
+                }
                 val hasUpdate = if (installedVersion != null && currentReleaseTag != null) {
                     VersionComparator.isNewerVersion(installedVersion, currentReleaseTag!!)
                 } else {
@@ -994,6 +1003,19 @@ class DetailActivity : AppCompatActivity() {
                     checkInstalledState()
                 }
             }
+            .show()
+    }
+
+    private fun showSignatureMismatchDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.signature_mismatch_title)
+            .setMessage(R.string.signature_mismatch_message)
+            .setPositiveButton(R.string.uninstall_and_reinstall) { _, _ ->
+                installedPackageName?.let { pkg ->
+                    appInstaller.uninstall(pkg)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 

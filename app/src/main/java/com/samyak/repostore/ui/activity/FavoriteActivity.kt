@@ -35,7 +35,8 @@ class FavoriteActivity : AppCompatActivity() {
     private lateinit var binding: ActivityFavoriteBinding
     
     private val viewModel: FavoriteViewModel by viewModels {
-        FavoriteViewModelFactory((application as RepoStoreApp).favoriteAppDao)
+        val app = application as RepoStoreApp
+        FavoriteViewModelFactory(app.favoriteAppDao, app.installedAppMappingDao, packageManager)
     }
 
     private lateinit var appAdapter: FavoriteAppAdapter
@@ -70,6 +71,7 @@ class FavoriteActivity : AppCompatActivity() {
         setupToolbar()
         setupRecyclerView()
         setupSwipeRefresh()
+        setupFilterChips()
         observeViewModel()
     }
 
@@ -108,6 +110,16 @@ class FavoriteActivity : AppCompatActivity() {
         binding.rvApps.apply {
             adapter = appAdapter
             layoutManager = LinearLayoutManager(this@FavoriteActivity)
+        }
+    }
+
+    private fun setupFilterChips() {
+        binding.chipGroupFilter.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.contains(R.id.chip_favorites)) {
+                viewModel.setFilterMode(FavoriteViewModel.FilterMode.FAVORITES)
+            } else {
+                viewModel.setFilterMode(FavoriteViewModel.FilterMode.ALL_INSTALLED)
+            }
         }
     }
 

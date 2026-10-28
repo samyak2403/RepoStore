@@ -6,6 +6,37 @@ package com.samyak.repostore.util
  */
 object VersionComparator {
 
+    // Packaging / architecture / build flavor suffixes that denote packaging variants,
+    // NOT pre-releases. These are treated as equivalent to the base semantic version.
+    private val FLAVOR_SUFFIXES = setOf(
+        "release",
+        "debug",
+        "fdroid",
+        "f-droid",
+        "universal",
+        "arm64-v8a",
+        "armeabi-v7a",
+        "armeabi",
+        "x86",
+        "x86_64",
+        "apk"
+    )
+
+    private val PREFIXES = listOf(
+        "release-",
+        "Release-",
+        "version-",
+        "Version-",
+        "version",
+        "Version",
+        "ver-",
+        "Ver-",
+        "ver",
+        "Ver",
+        "v",
+        "V"
+    )
+
     /**
      * Check if the latest version is newer than the current installed version.
      * 
@@ -37,7 +68,7 @@ object VersionComparator {
             }
         }
         
-        // 2. Numeric cores are equal — fall back to pre-release ordering.
+        // 2. Numeric cores are equal -- fall back to pre-release ordering.
         //    A stable release (no pre-release tag) outranks any pre-release of the
         //    same core (e.g. 1.0.0 is newer than 1.0.0-rc1).
         val installedPre = extractPreRelease(installedVersion)
@@ -53,20 +84,35 @@ object VersionComparator {
     
     /**
      * Extract the pre-release identifier (the part after the first '-' or '_' in the
-     * core-stripped version), e.g. "v1.2.3-rc2" -> "rc2". Returns "" when absent.
+     * core-stripped version), e.g. "v1.2.3-rc2" -> "rc2". Returns "" when absent
+     * or when the suffix is a packaging/flavor suffix (e.g. "-release", "-fdroid").
      */
     private fun extractPreRelease(version: String): String {
         var normalized = version.trim()
-        val prefixes = listOf("v", "V", "version", "Version", "release-", "Release-", "ver", "Ver")
-        for (prefix in prefixes) {
-            if (normalized.startsWith(prefix)) {
-                normalized = normalized.removePrefix(prefix)
+        
+        // Strip build metadata after '+'
+        val plusIndex = normalized.indexOf('+')
+        if (plusIndex >= 0) {
+            normalized = normalized.substring(0, plusIndex)
+        }
+
+        for (prefix in PREFIXES) {
+            if (normalized.startsWith(prefix, ignoreCase = true)) {
+                normalized = normalized.substring(prefix.length)
                 break
             }
         }
+        
         val sepIndex = normalized.indexOfFirst { it == '-' || it == '_' }
         if (sepIndex < 0) return ""
-        return normalized.substring(sepIndex + 1).lowercase().trim()
+        val suffix = normalized.substring(sepIndex + 1).lowercase().trim()
+        
+        // If suffix is a known flavor/packaging suffix, treat as base semantic version
+        if (FLAVOR_SUFFIXES.contains(suffix)) {
+            return ""
+        }
+        
+        return suffix
     }
     
     /**
@@ -93,27 +139,33 @@ object VersionComparator {
     }
     
     /**
-     * Normalize a version string by removing common prefixes and suffixes.
+     * Normalize a version string by removing common prefixes, build metadata after '+',
+     * and suffixes after '-' or '_'.
      * Examples:
      * - "v1.2.3" -> "1.2.3"
-     * - "V1.2.3" -> "1.2.3"
+     * - "release-1.2.0" -> "1.2.0"
+     * - "v1.2.0-release" -> "1.2.0"
+     * - "v1.2.0+build4" -> "1.2.0"
      * - "1.2.3-beta" -> "1.2.3"
-     * - "1.2.3-rc1" -> "1.2.3"
-     * - "release-1.2.3" -> "1.2.3"
      */
     fun normalizeVersion(version: String): String {
         var normalized = version.trim()
         
+        // Strip build metadata after '+' (e.g., "1.2.0+build4" -> "1.2.0")
+        val plusIndex = normalized.indexOf('+')
+        if (plusIndex >= 0) {
+            normalized = normalized.substring(0, plusIndex)
+        }
+
         // Remove common prefixes
-        val prefixes = listOf("v", "V", "version", "Version", "release-", "Release-", "ver", "Ver")
-        for (prefix in prefixes) {
-            if (normalized.startsWith(prefix)) {
-                normalized = normalized.removePrefix(prefix)
+        for (prefix in PREFIXES) {
+            if (normalized.startsWith(prefix, ignoreCase = true)) {
+                normalized = normalized.substring(prefix.length)
                 break
             }
         }
         
-        // Remove suffixes after hyphen (e.g., "-beta", "-rc1", "-alpha")
+        // Remove suffixes after hyphen (e.g., "-beta", "-rc1", "-alpha", "-release")
         val hyphenIndex = normalized.indexOf('-')
         if (hyphenIndex > 0) {
             normalized = normalized.substring(0, hyphenIndex)
