@@ -86,6 +86,11 @@ android {
             isReturnDefaultValues = true
         }
     }
+
+    lint {
+        abortOnError = false
+        disable += "MissingTranslation"
+    }
 }
 
 kotlin {

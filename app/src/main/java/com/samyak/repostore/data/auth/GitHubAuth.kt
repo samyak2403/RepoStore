@@ -84,14 +84,14 @@ object GitHubAuth {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string()
-
-            if (response.isSuccessful && body != null) {
-                gson.fromJson(body, DeviceCodeResponse::class.java)
-            } else {
-                Log.e(TAG, "Device code error: $body")
-                null
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (response.isSuccessful && body != null) {
+                    gson.fromJson(body, DeviceCodeResponse::class.java)
+                } else {
+                    Log.e(TAG, "Device code error: $body")
+                    null
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Device code request failed", e)
@@ -123,11 +123,12 @@ object GitHubAuth {
                     .header("Accept", "application/json")
                     .build()
 
-                val response = client.newCall(request).execute()
-                val body = response.body?.string()
+                val tokenResponse = client.newCall(request).execute().use { response ->
+                    val body = response.body?.string()
+                    if (body != null) gson.fromJson(body, TokenResponse::class.java) else null
+                }
 
-                if (body != null) {
-                    val tokenResponse = gson.fromJson(body, TokenResponse::class.java)
+                if (tokenResponse != null) {
 
                     when (tokenResponse.error) {
                         null -> {
@@ -178,13 +179,13 @@ object GitHubAuth {
                 .header("Accept", "application/vnd.github+json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string()
-
-            if (response.isSuccessful && body != null) {
-                gson.fromJson(body, GitHubUser::class.java)
-            } else {
-                null
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (response.isSuccessful && body != null) {
+                    gson.fromJson(body, GitHubUser::class.java)
+                } else {
+                    null
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Fetch user failed", e)
