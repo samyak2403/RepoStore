@@ -56,3 +56,4 @@ class SearchFiltersTest {
         assertTrue("Query should contain stars filter", query.contains("stars:>=50"))
     }
 }
+

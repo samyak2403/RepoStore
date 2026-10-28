@@ -92,7 +92,7 @@ enum class AppTag {
 
 
 
-enum class AppCategory(@androidx.annotation.StringRes val titleRes: Int, val displayName: String, val queries: List<String>, val iconRes: Int, val colorRes: Int) {
+enum class AppCategory(@param:androidx.annotation.StringRes val titleRes: Int, val displayName: String, val queries: List<String>, val iconRes: Int, val colorRes: Int) {
     ALL(R.string.cat_name_all, "All", listOf("android app", "topic:android"), R.drawable.ic_apps, R.color.cat_bg_brown),
     AI_CHAT(R.string.cat_name_ai_chat, "AI Chat", listOf("android ai chat", "android chatbot llm", "topic:ai topic:android"), R.drawable.ic_cat_ai, R.color.cat_bg_blue),
     APP_MANAGER(R.string.cat_name_app_manager, "App Manager", listOf("android app manager", "android package manager", "topic:app-manager topic:android"), R.drawable.ic_cat_app_manager, R.color.cat_bg_green),

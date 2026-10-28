@@ -10,6 +10,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.bumptech.glide.Glide
 import com.samyak.repostore.R
 import com.samyak.repostore.databinding.ActivityIconViewerBinding
+import com.samyak.repostore.util.applyTransition
 import com.samyak.repostore.util.loadIconWithFallback
 
 class IconViewerActivity : AppCompatActivity() {
@@ -55,7 +56,7 @@ class IconViewerActivity : AppCompatActivity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.fade_in, R.anim.slide_down)
+        applyTransition(isOpen = false, R.anim.fade_in, R.anim.slide_down)
     }
 
     companion object {

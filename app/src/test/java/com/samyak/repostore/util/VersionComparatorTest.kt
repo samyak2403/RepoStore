@@ -60,3 +60,4 @@ class VersionComparatorTest {
         assertFalse(VersionComparator.isNewerVersion("1.2.0", "release-1.2.0"))
     }
 }
+

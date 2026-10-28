@@ -13,6 +13,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.samyak.repostore.R
 import com.samyak.repostore.databinding.ActivityScreenshotViewerBinding
 import com.samyak.repostore.ui.adapter.ScreenshotPagerAdapter
+import com.samyak.repostore.util.applyTransition
 
 class ScreenshotViewerActivity : AppCompatActivity() {
 
@@ -84,7 +85,7 @@ class ScreenshotViewerActivity : AppCompatActivity() {
 
     private fun finishWithAnimation() {
         finish()
-        overridePendingTransition(R.anim.fade_in, R.anim.slide_down)
+        applyTransition(isOpen = false, R.anim.fade_in, R.anim.slide_down)
     }
 
     private fun updatePageIndicator(position: Int, total: Int) {

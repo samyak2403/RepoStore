@@ -48,6 +48,7 @@ import com.samyak.repostore.ui.widget.ShimmerFrameLayout
 import com.samyak.repostore.util.ApkSelectionResult
 import com.samyak.repostore.util.RateLimitDialog
 import com.samyak.repostore.util.VersionComparator
+import com.samyak.repostore.util.applyTransition
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
@@ -288,7 +289,7 @@ class DetailActivity : AppCompatActivity() {
                 position
             )
             startActivity(intent)
-            overridePendingTransition(R.anim.slide_up, R.anim.fade_out)
+            applyTransition(isOpen = true, R.anim.slide_up, R.anim.fade_out)
         }
     }
 
@@ -485,7 +486,7 @@ class DetailActivity : AppCompatActivity() {
                     repo.name
                 )
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_up, R.anim.fade_out)
+                applyTransition(isOpen = true, R.anim.slide_up, R.anim.fade_out)
             }
 
             // Topics as chips
