@@ -86,7 +86,7 @@ class HomeViewModel(private val repository: GitHubRepository) : ViewModel() {
      * Load initial batch of category sections
      */
     private fun loadInitialCategories() {
-        displayCategories.take(6).forEach { category ->
+        displayCategories.take(3).forEach { category ->
             loadCategoryIfNeeded(category)
         }
     }

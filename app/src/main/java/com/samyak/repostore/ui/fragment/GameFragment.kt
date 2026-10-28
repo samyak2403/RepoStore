@@ -206,7 +206,7 @@ class GameFragment : Fragment() {
                 hideSkeleton()
                 binding.scrollView.visibility = View.GONE
                 binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = getString(R.string.no_games_found)
+                binding.tvError.text = "${getString(R.string.no_games_found)}\n\n${getString(R.string.tap_to_retry)}"
             }
 
             is GameUiState.LoadingMore -> {

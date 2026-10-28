@@ -341,7 +341,7 @@ class HomeFragment : Fragment() {
                 hideSkeleton()
                 binding.scrollView.visibility = View.GONE
                 binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = getString(R.string.no_apps_found)
+                binding.tvError.text = "${getString(R.string.no_apps_found)}\n\n${getString(R.string.tap_to_retry)}"
             }
 
             is HomeUiState.LoadingMore -> {

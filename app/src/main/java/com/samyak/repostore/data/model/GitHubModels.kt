@@ -118,7 +118,7 @@ enum class AppCategory(@param:androidx.annotation.StringRes val titleRes: Int, v
     FLASHLIGHT(R.string.cat_name_flashlight, "Flashlight", listOf("android flashlight", "android torch", "topic:flashlight topic:android"), R.drawable.ic_cat_flashlight, R.color.cat_bg_yellow),
     FORUM(R.string.cat_name_forum, "Forum", listOf("android forum client", "android reddit client", "topic:forum topic:android"), R.drawable.ic_cat_message, R.color.cat_bg_orange),
     GALLERY(R.string.cat_name_gallery, "Gallery", listOf("android gallery", "android photo gallery", "topic:gallery topic:android"), R.drawable.ic_cat_image, R.color.cat_bg_yellow),
-    GAMES(R.string.cat_name_games, "Games", listOf("android game", "topic:android-game", "mobile game android"), R.drawable.ic_games, R.color.cat_bg_purple),
+    GAMES(R.string.cat_name_games, "Games", listOf("topic:android topic:game", "android game", "topic:android-game"), R.drawable.ic_games, R.color.cat_bg_purple),
     GRAPHICS(R.string.cat_name_graphics, "Graphics", listOf("android graphics editor", "android image editor", "topic:graphics topic:android"), R.drawable.ic_cat_image, R.color.cat_bg_yellow),
     HABIT_TRACKER(R.string.cat_name_habit_tracker, "Habit Tracker", listOf("android habit tracker", "android daily tracker", "topic:habit-tracker topic:android"), R.drawable.ic_cat_habit, R.color.cat_bg_indigo),
     ICON_PACK(R.string.cat_name_icon_pack, "Icon Pack", listOf("android icon pack", "android icons theme", "topic:icon-pack topic:android"), R.drawable.ic_cat_icon_pack, R.color.cat_bg_yellow),

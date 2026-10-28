@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_home -> {
+                R.id.nav_games -> {
                     loadFragment(GameFragment.newInstance())
                     true
                 }

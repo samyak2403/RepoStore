@@ -118,15 +118,12 @@ object RetrofitClient {
                 if (request.cacheControl.noCache) {
                     return@addInterceptor chain.proceed(request)
                 }
-                if (!isNetworkAvailable()) {
-                    val cacheControl = CacheControl.Builder()
-                        .maxStale(7, TimeUnit.DAYS)
-                        .onlyIfCached()
-                        .build()
-                    request = request.newBuilder()
-                        .cacheControl(cacheControl)
-                        .build()
-                }
+                val cacheControl = CacheControl.Builder()
+                    .maxStale(7, TimeUnit.DAYS)
+                    .build()
+                request = request.newBuilder()
+                    .cacheControl(cacheControl)
+                    .build()
                 chain.proceed(request)
             }
             // Retry interceptor for rate limiting

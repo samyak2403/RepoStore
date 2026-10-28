@@ -134,6 +134,7 @@ class GitHubRepository(
      * Filter repos to only include those with APK releases
      */
     private suspend fun filterReposWithApk(repos: List<GitHubRepo>): List<AppItem> = coroutineScope {
+        if (repos.isEmpty()) return@coroutineScope emptyList()
         val results = repos.map { repo ->
             async {
                 try {
@@ -149,8 +150,17 @@ class GitHubRepository(
                     null
                 }
             }
+        }.awaitAll().filterNotNull()
+
+        if (results.isNotEmpty()) {
+            results
+        } else {
+            // Fall back to showing the repos as AppItems so the UI is NEVER empty when GitHub returns results
+            repos.map { repo ->
+                val tag = determineTag(repo, null)
+                AppItem(repo, null, tag, IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language))
+            }
         }
-        results.awaitAll().filterNotNull()
     }
 
     /**
@@ -169,7 +179,7 @@ class GitHubRepository(
             // Search in name, description, and readme
             val searchQuery = "$query in:name,description topic:android"
 //            val searchQuery = "$query in:name,description,readme"
-            val response = api.searchRepositories(searchQuery, perPage = 40, page = page)
+            val response = api.searchRepositories(query = searchQuery, sort = "stars", perPage = 40, page = page)
 
             // Filter to only repos with APK releases
             val appItems = filterReposWithApk(response.items)
@@ -375,7 +385,7 @@ class GitHubRepository(
     suspend fun getPopularAndroidApps(page: Int = 1): Result<List<AppItem>> = withContext(Dispatchers.IO) {
         try {
             val query = "android app topic:android stars:>100"
-            val response = api.searchRepositories(query, perPage = 40, page = page)
+            val response = api.searchRepositories(query = query, sort = "stars", perPage = 40, page = page)
 
             lastFetchTime = System.currentTimeMillis()
 
@@ -464,6 +474,7 @@ class GitHubRepository(
                         } catch (e: Exception) {
                             // Continue with next query if one fails
                         }
+                        if (allRepos.size >= 30) break
                     }
 
                     if (allRepos.isEmpty()) {
@@ -484,18 +495,19 @@ class GitHubRepository(
 
                     Result.success(appItems.sortedByDescending { it.repo.stars })
                 } else {
+                    var lastException: Exception? = null
                     // For other categories: try each query and merge results
                     for (query in category.queries) {
                         try {
-                            val searchQuery = "$query stars:>50"
-                            val response = api.searchRepositories(searchQuery, perPage = 30, page = page)
+                            val searchQuery = if (query.contains("stars:")) query else "$query stars:>20"
+                            val response = api.searchRepositories(searchQuery, sort = "stars", perPage = 30, page = page)
                             for (repo in response.items) {
                                 if (seenIds.add(repo.id)) {
                                     allRepos.add(repo)
                                 }
                             }
                         } catch (e: Exception) {
-                            // Continue with next query if one fails
+                            lastException = e
                         }
                         if (allRepos.size >= 30) break
                     }
@@ -504,6 +516,13 @@ class GitHubRepository(
                         val cached = getCachedAppItemsByCategory(category.name)
                         if (cached.isNotEmpty()) {
                             return@withContext Result.success(cached)
+                        }
+                        if (lastException != null) {
+                            return@withContext if (lastException is HttpException) {
+                                handleHttpException(lastException)
+                            } else {
+                                Result.failure(lastException)
+                            }
                         }
                         return@withContext Result.success(emptyList())
                     }
