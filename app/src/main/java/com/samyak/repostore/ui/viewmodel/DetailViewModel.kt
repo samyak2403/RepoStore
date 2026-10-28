@@ -73,11 +73,11 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
         return topic ?: repo.language?.takeIf { it.isNotBlank() }
     }
 
-    fun loadAppDetails(owner: String, repoName: String) {
+    fun loadAppDetails(owner: String, repoName: String, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = DetailUiState.Loading
 
-            val repoResult = repository.getRepoDetails(owner, repoName)
+            val repoResult = repository.getRepoDetails(owner, repoName, forceRefresh)
 
             repoResult.fold(
                 onSuccess = { repo ->
@@ -85,7 +85,7 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
                     _uiState.value = DetailUiState.Success(repo, null)
 
                     // Load release in background
-                    loadRelease(owner, repoName, repo)
+                    loadRelease(owner, repoName, repo, forceRefresh)
 
                     // Load screenshots in background
                     loadScreenshots(owner, repoName, repo.defaultBranch)
@@ -103,9 +103,9 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
         }
     }
 
-    private fun loadRelease(owner: String, repoName: String, repo: GitHubRepo) {
+    private fun loadRelease(owner: String, repoName: String, repo: GitHubRepo, forceRefresh: Boolean = false) {
         viewModelScope.launch {
-            val releaseResult = repository.getLatestRelease(owner, repoName)
+            val releaseResult = repository.getLatestRelease(owner, repoName, forceRefresh)
             releaseResult.onSuccess { release ->
                 _uiState.value = DetailUiState.Success(repo, release)
             }
@@ -140,7 +140,7 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
     }
 
     fun retry(owner: String, repoName: String) {
-        loadAppDetails(owner, repoName)
+        loadAppDetails(owner, repoName, forceRefresh = true)
     }
 }
 

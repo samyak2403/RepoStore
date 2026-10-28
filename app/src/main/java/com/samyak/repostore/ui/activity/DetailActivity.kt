@@ -169,7 +169,7 @@ class DetailActivity : AppCompatActivity() {
         setupExpandableSections()
         setupSimilarAppsShelf()
         observeViewModel()
-        viewModel.loadAppDetails(owner, repoName)
+        viewModel.loadAppDetails(owner, repoName, forceRefresh = true)
     }
 
     override fun onResume() {

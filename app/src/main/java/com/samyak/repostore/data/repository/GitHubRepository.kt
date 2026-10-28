@@ -25,9 +25,10 @@ class GitHubRepository(private val repoDao: RepoDao) {
     // (e.g. filterReposWithApk fans out with async{}), so they must be thread-safe.
     // ConcurrentHashMap disallows null values, so repos that are known to have NO
     // release (HTTP 404) are tracked in a separate concurrent set instead of a null entry.
-    private val releaseCache = ConcurrentHashMap<String, GitHubRelease>()
-    private val noReleaseRepos: MutableSet<String> =
-        java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    private val releaseCache = ConcurrentHashMap<String, Pair<Long, GitHubRelease>>()
+    private val releaseCacheTtlMs = 5 * 60 * 1000L // 5 minutes in-memory TTL
+    private val noReleaseRepos = ConcurrentHashMap<String, Long>()
+
     private val totalDownloadsCache = ConcurrentHashMap<String, Long>()
     private val screenshotCache = ConcurrentHashMap<String, List<String>>()
     private val developerReposCache = ConcurrentHashMap<String, Pair<Long, List<AppItem>>>()
@@ -73,7 +74,7 @@ class GitHubRepository(private val repoDao: RepoDao) {
             val hasApk = hasInstallableAsset(release)
             apkReposCache[cacheKey] = hasApk
             if (hasApk) {
-                releaseCache[cacheKey] = release
+                releaseCache[cacheKey] = System.currentTimeMillis() to release
             }
             hasApk
         } catch (e: Exception) {
@@ -91,7 +92,7 @@ class GitHubRepository(private val repoDao: RepoDao) {
                 try {
                     val hasApk = repoHasApk(repo.owner.login, repo.name)
                     if (hasApk) {
-                        val release = releaseCache["${repo.owner.login}/${repo.name}"]
+                        val release = releaseCache["${repo.owner.login}/${repo.name}"]?.second
                         val tag = determineTag(repo, release)
                         AppItem(repo, release, tag, IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language))
                     } else {
@@ -428,16 +429,22 @@ class GitHubRepository(private val repoDao: RepoDao) {
         }
     }
 
-    suspend fun getRepoDetails(owner: String, repoName: String): Result<GitHubRepo> = withContext(Dispatchers.IO) {
+    suspend fun getRepoDetails(
+        owner: String,
+        repoName: String,
+        forceRefresh: Boolean = false
+    ): Result<GitHubRepo> = withContext(Dispatchers.IO) {
         try {
-            // Check cache first
+            if (!forceRefresh) {
             val cached = repoDao.getRepoByFullName("$owner/$repoName")
             if (cached != null) {
                 // Return cached, but also try to update in background
                 return@withContext Result.success(cached)
             }
+            }
 
-            val repo = api.getRepository(owner, repoName)
+            val cacheControl = if (forceRefresh) "no-cache" else null
+            val repo = api.getRepository(owner, repoName, cacheControl = cacheControl)
             repoDao.insertRepo(repo)
             Result.success(repo)
         } catch (e: HttpException) {
@@ -456,6 +463,12 @@ class GitHubRepository(private val repoDao: RepoDao) {
             }
         }
     }
+
+    suspend fun getRepositoryDetails(
+        owner: String,
+        repoName: String,
+        forceRefresh: Boolean = false
+    ): Result<GitHubRepo> = getRepoDetails(owner, repoName, forceRefresh)
 
     suspend fun getReleases(owner: String, repoName: String): Result<List<GitHubRelease>> = withContext(Dispatchers.IO) {
         try {
@@ -507,29 +520,32 @@ class GitHubRepository(private val repoDao: RepoDao) {
         repoName: String,
         forceRefresh: Boolean = false
     ): Result<GitHubRelease> = withContext(Dispatchers.IO) {
+        val cacheKey = "$owner/$repoName"
         try {
-            val cacheKey = "$owner/$repoName"
 
             // When forceRefresh is requested (e.g. the App Updates screen checking for
             // new versions) we skip the in-memory cache and always hit the network so
             // freshly published releases show up immediately.
             if (!forceRefresh) {
-                releaseCache[cacheKey]?.let {
-                    return@withContext Result.success(it)
+                val cached = releaseCache[cacheKey]
+                if (cached != null && (System.currentTimeMillis() - cached.first) < releaseCacheTtlMs) {
+                    return@withContext Result.success(cached.second)
                 }
-                // Remembered as having no release — avoid re-hitting the network.
-                if (noReleaseRepos.contains(cacheKey)) {
+                // Remembered as having no release -- avoid re-hitting the network within TTL.
+                val noReleaseTime = noReleaseRepos[cacheKey]
+                if (noReleaseTime != null && (System.currentTimeMillis() - noReleaseTime) < releaseCacheTtlMs) {
                     return@withContext Result.failure(NoSuchElementException("No release found for $cacheKey"))
                 }
             }
 
-            val release = api.getLatestRelease(owner, repoName)
-            releaseCache[cacheKey] = release
+            val cacheControl = if (forceRefresh) "no-cache" else null
+            val release = api.getLatestRelease(owner, repoName, cacheControl = cacheControl)
+            releaseCache[cacheKey] = System.currentTimeMillis() to release
             noReleaseRepos.remove(cacheKey)
             Result.success(release)
         } catch (e: HttpException) {
             if (e.code() == 404) {
-                noReleaseRepos.add("$owner/$repoName")
+                noReleaseRepos[cacheKey] = System.currentTimeMillis()
             }
             handleHttpException(e)
         } catch (e: Exception) {

@@ -1,6 +1,8 @@
 package com.samyak.repostore.data.api
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.samyak.repostore.data.auth.GitHubAuth
 import okhttp3.Cache
 import okhttp3.CacheControl
@@ -47,6 +49,15 @@ object RetrofitClient {
         return githubToken
     }
 
+    private fun isNetworkAvailable(): Boolean {
+        val context = appContext ?: return true
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return true
+        val activeNetwork = cm.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(activeNetwork) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BASIC
     }
@@ -74,27 +85,48 @@ object RetrofitClient {
 
                 chain.proceed(requestBuilder.build())
             }
-            // Cache interceptor - cache responses for 5 minutes
+            // Network Cache interceptor:
+            // Short TTL (60s) on releases, repo metadata, and readme so new releases/descriptions are picked up quickly.
+            // Let OkHttp's conditional ETag (If-None-Match) handle freshness (304 Not Modified is free against rate limits).
             .addNetworkInterceptor { chain ->
-                val response = chain.proceed(chain.request())
+                val request = chain.request()
+                val response = chain.proceed(request)
+                
+                // If the request specifically asked for no-cache (forceRefresh), don't force cache headers
+                if (request.cacheControl.noCache) {
+                    return@addNetworkInterceptor response
+                }
+                
+                val path = request.url.encodedPath
+                val maxAgeSeconds = if (path.contains("/releases") || path.contains("/repos/") || path.contains("/readme")) {
+                    60
+                } else {
+                    300
+                }
                 val cacheControl = CacheControl.Builder()
-                    .maxAge(5, TimeUnit.MINUTES)
+                    .maxAge(maxAgeSeconds, TimeUnit.SECONDS)
                     .build()
                 response.newBuilder()
                     .header("Cache-Control", cacheControl.toString())
                     .removeHeader("Pragma")
                     .build()
             }
-            // Offline cache interceptor
+            // Offline cache interceptor:
+            // Only apply max-stale when actually offline; honor no-cache if forceRefresh is requested.
             .addInterceptor { chain ->
                 var request = chain.request()
-                // If offline, use cache for up to 7 days
-                val cacheControl = CacheControl.Builder()
-                    .maxStale(7, TimeUnit.DAYS)
-                    .build()
-                request = request.newBuilder()
-                    .cacheControl(cacheControl)
-                    .build()
+                if (request.cacheControl.noCache) {
+                    return@addInterceptor chain.proceed(request)
+                }
+                if (!isNetworkAvailable()) {
+                    val cacheControl = CacheControl.Builder()
+                        .maxStale(7, TimeUnit.DAYS)
+                        .onlyIfCached()
+                        .build()
+                    request = request.newBuilder()
+                        .cacheControl(cacheControl)
+                        .build()
+                }
                 chain.proceed(request)
             }
             // Retry interceptor for rate limiting
