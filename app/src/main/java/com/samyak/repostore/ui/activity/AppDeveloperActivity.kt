@@ -12,10 +12,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.samyak.repostore.R
-import com.samyak.repostore.data.api.RetrofitClient
+import com.samyak.repostore.RepoStoreApp
 import com.samyak.repostore.data.model.GitHubUser
 import com.samyak.repostore.databinding.ActivityAppDeveloperBinding
-import kotlinx.coroutines.async
+import com.samyak.repostore.util.RateLimitDialog
 import kotlinx.coroutines.launch
 
 class AppDeveloperActivity : AppCompatActivity() {
@@ -48,29 +48,33 @@ class AppDeveloperActivity : AppCompatActivity() {
 
     private fun loadDeveloperInfo() {
         binding.progressBar.visibility = View.VISIBLE
+        binding.tvError.visibility = View.GONE
         
         lifecycleScope.launch {
-            try {
-                val userDeferred = async { RetrofitClient.api.getUser(DEVELOPER_USERNAME) }
-                val contributorsDeferred = async { 
-                    try {
-                        RetrofitClient.api.getContributors(DEVELOPER_USERNAME, "RepoStore")
-                    } catch (e: Exception) {
-                        emptyList()
+            val app = application as RepoStoreApp
+            val repository = app.repository
+            
+            val userResult = repository.getUser(DEVELOPER_USERNAME)
+            val contributorsResult = repository.getContributors(DEVELOPER_USERNAME, "RepoStore")
+            
+            binding.progressBar.visibility = View.GONE
+            
+            userResult.fold(
+                onSuccess = { user ->
+                    githubUser = user
+                    displayUserInfo(user)
+                    displayContributors(contributorsResult.getOrDefault(emptyList()))
+                },
+                onFailure = { error ->
+                    binding.tvError.visibility = View.VISIBLE
+                    val errorMsg = error.message ?: getString(R.string.network_error)
+                    binding.tvError.text = "$errorMsg\n\n${getString(R.string.tap_to_retry)}"
+                    binding.tvError.setOnClickListener {
+                        loadDeveloperInfo()
                     }
+                    RateLimitDialog.showIfNeeded(this@AppDeveloperActivity, errorMsg)
                 }
-                
-                val user = userDeferred.await()
-                val contributors = contributorsDeferred.await()
-                
-                githubUser = user
-                displayUserInfo(user)
-                displayContributors(contributors)
-            } catch (e: Exception) {
-                binding.progressBar.visibility = View.GONE
-                binding.tvError.visibility = View.VISIBLE
-                binding.tvError.text = getString(R.string.network_error)
-            }
+            )
         }
     }
 

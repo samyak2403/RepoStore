@@ -42,6 +42,8 @@ class GitHubRepository(
     private val totalDownloadsCache = ConcurrentHashMap<String, Long>()
     private val screenshotCache = ConcurrentHashMap<String, List<String>>()
     private val developerReposCache = ConcurrentHashMap<String, Pair<Long, List<AppItem>>>()
+    private val userCache = ConcurrentHashMap<String, Pair<Long, GitHubUser>>()
+    private val contributorsCache = ConcurrentHashMap<String, Pair<Long, List<GitHubUser>>>()
     private val apkReposCache = ConcurrentHashMap<String, Boolean>() // Cache for repos with APK
     
     private var lastFetchTime = 0L
@@ -798,6 +800,65 @@ class GitHubRepository(
             handleHttpException(e)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun getUser(username: String): Result<GitHubUser> = withContext(Dispatchers.IO) {
+        try {
+            val currentTime = System.currentTimeMillis()
+            userCache[username]?.let { (timestamp, user) ->
+                if (currentTime - timestamp < developerCacheValidityMs) {
+                    return@withContext Result.success(user)
+                }
+            }
+
+            val user = api.getUser(username)
+            userCache[username] = currentTime to user
+            Result.success(user)
+        } catch (e: HttpException) {
+            val cached = userCache[username]?.second
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                handleHttpException(e)
+            }
+        } catch (e: Exception) {
+            val cached = userCache[username]?.second
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun getContributors(owner: String, repo: String): Result<List<GitHubUser>> = withContext(Dispatchers.IO) {
+        val cacheKey = "$owner/$repo"
+        try {
+            val currentTime = System.currentTimeMillis()
+            contributorsCache[cacheKey]?.let { (timestamp, contributors) ->
+                if (currentTime - timestamp < developerCacheValidityMs) {
+                    return@withContext Result.success(contributors)
+                }
+            }
+
+            val contributors = api.getContributors(owner, repo)
+            contributorsCache[cacheKey] = currentTime to contributors
+            Result.success(contributors)
+        } catch (e: HttpException) {
+            val cached = contributorsCache[cacheKey]?.second
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                handleHttpException(e)
+            }
+        } catch (e: Exception) {
+            val cached = contributorsCache[cacheKey]?.second
+            if (cached != null) {
+                Result.success(cached)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
