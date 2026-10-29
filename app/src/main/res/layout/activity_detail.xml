@@ -327,10 +327,22 @@
                     android:layout_height="48dp"
                     android:layout_weight="1"
                     android:layout_marginEnd="8dp"
+                    android:minHeight="48dp"
                     android:text="@string/uninstall"
                     android:textColor="?attr/colorError"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:letterSpacing="0"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="0dp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
                     app:strokeColor="?attr/colorError"
+                    app:strokeWidth="1.5dp"
                     app:cornerRadius="24dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
                     android:visibility="gone"
                     tools:visibility="visible" />
 
@@ -359,6 +371,7 @@
                             android:layout_height="match_parent"
                             android:orientation="vertical"
                             android:gravity="center"
+                            android:paddingHorizontal="12dp"
                             android:background="?attr/selectableItemBackground"
                             android:clickable="true"
                             android:focusable="true">
@@ -372,7 +385,9 @@
                                 android:text="@string/install"
                                 android:textColor="?attr/colorOnPrimary"
                                 android:textSize="16sp"
-                                android:textStyle="bold" />
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="end" />
 
                             <TextView
                                 android:id="@+id/tv_download_subtitle"
@@ -381,6 +396,8 @@
                                 android:textColor="?attr/colorOnPrimary"
                                 android:textSize="11sp"
                                 android:visibility="gone"
+                                android:maxLines="1"
+                                android:ellipsize="end"
                                 tools:text="aarch64 • 11.5 MB"
                                 tools:visibility="visible" />
                         </LinearLayout>
@@ -425,8 +442,15 @@
                 android:layout_height="48dp"
                 android:layout_marginHorizontal="16dp"
                 android:layout_marginTop="8dp"
+                android:minHeight="48dp"
                 android:text="@string/view_on_github"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:letterSpacing="0"
                 app:cornerRadius="24dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
                 app:icon="@drawable/ic_github_mark"
                 app:iconGravity="textStart" />
 
