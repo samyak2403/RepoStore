@@ -17,73 +17,47 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="12dp">
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="12dp">
 
-        <!-- App Icon -->
-        <ImageView
-            android:id="@+id/ivIcon"
+        <!-- App / Architecture Icon container -->
+        <FrameLayout
+            android:id="@+id/layoutIcon"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/ic_android"
+            android:background="@drawable/bg_variant_icon"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="?attr/colorPrimary" />
-
-        <!-- Text Content Block -->
-        <LinearLayout
-            android:id="@+id/layoutText"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="12dp"
-            android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/layoutMeta"
-            app:layout_constraintStart_toEndOf="@id/ivIcon"
             app:layout_constraintTop_toTopOf="parent">
 
-            <TextView
-                android:id="@+id/tvVariantName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="middle"
-                android:singleLine="true"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textColor="?attr/colorOnSurface"
-                android:textStyle="bold"
-                tools:text="app-arm64-v8a-release.apk" />
+            <ImageView
+                android:id="@+id/ivIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_android"
+                app:tint="?attr/colorPrimary" />
+        </FrameLayout>
 
-            <TextView
-                android:id="@+id/tvVariantSize"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="24.5 MB" />
-
-        </LinearLayout>
-
-        <!-- Meta Labels (Recommended + Compatibility) -->
+        <!-- Top Badges / Checkmark Container -->
         <LinearLayout
-            android:id="@+id/layoutMeta"
+            android:id="@+id/layoutBadges"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/ivSelectedCheck"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintBottom_toBottomOf="@id/tvVariantName"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/tvVariantName">
 
             <TextView
                 android:id="@+id/tvRecommended"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
                 android:background="@drawable/recommended_label_bg"
                 android:paddingHorizontal="8dp"
-                android:paddingVertical="4dp"
+                android:paddingVertical="3dp"
                 android:text="@string/recommended"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
                 android:textColor="@color/white"
@@ -91,31 +65,108 @@
                 android:visibility="gone"
                 tools:visibility="visible" />
 
+            <ImageView
+                android:id="@+id/ivSelectedCheck"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@string/selected_content_desc"
+                android:src="@drawable/ic_check_circle"
+                android:visibility="gone"
+                app:tint="@color/primary"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- Primary Variant Architecture / Title -->
+        <TextView
+            android:id="@+id/tvVariantName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold"
+            app:layout_constraintEnd_toStartOf="@id/layoutBadges"
+            app:layout_constraintStart_toEndOf="@id/layoutIcon"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="ARM64 (v8a)" />
+
+        <!-- Full File Name (clean, readable, wrapped/middle ellipsized if extremely long) -->
+        <TextView
+            android:id="@+id/tvVariantFileName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="2dp"
+            android:ellipsize="middle"
+            android:maxLines="2"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/layoutIcon"
+            app:layout_constraintTop_toBottomOf="@id/tvVariantName"
+            tools:text="universal-revanced-manager-arm64-v8a.apk" />
+
+        <!-- Metadata row: File Size • Arch Type • Compatibility Status -->
+        <LinearLayout
+            android:id="@+id/layoutMeta"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/layoutIcon"
+            app:layout_constraintTop_toBottomOf="@id/tvVariantFileName">
+
+            <TextView
+                android:id="@+id/tvVariantSize"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="112.7 MB" />
+
+            <TextView
+                android:id="@+id/tvMetaDot"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:text="•"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="?attr/colorOutline" />
+
+            <TextView
+                android:id="@+id/tvVariantArch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="64-bit ARM" />
+
+            <TextView
+                android:id="@+id/tvMetaDot2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:text="•"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textColor="?attr/colorOutline" />
+
             <TextView
                 android:id="@+id/tvCompatibility"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorPrimary"
                 android:textStyle="bold"
-                tools:text="Compatible" />
-
+                tools:text="Compatible"
+                tools:textColor="@color/primary" />
         </LinearLayout>
-
-        <!-- Selected Check Icon -->
-        <ImageView
-            android:id="@+id/ivSelectedCheck"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="8dp"
-            android:src="@drawable/ic_check_circle"
-            app:tint="@color/primary"
-            android:visibility="gone"
-            android:contentDescription="@string/selected_content_desc"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

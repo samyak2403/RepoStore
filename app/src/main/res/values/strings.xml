@@ -295,6 +295,7 @@
     <string name="download_settings_info">Mirror proxy transforms GitHub URLs through a proxy server. Multi-part downloading splits files into chunks for parallel downloading.</string>
     <string name="download_speed_format">%s/s</string>
     <string name="select_variant">Select Version</string>
+    <string name="select_variant_subtitle">Choose the build compatible with your device architecture</string>
     <string name="compatible">Compatible</string>
     <string name="incompatible">Incompatible</string>
     <string name="recommended">Recommended</string>

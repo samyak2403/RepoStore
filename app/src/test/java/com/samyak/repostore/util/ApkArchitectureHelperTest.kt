@@ -149,6 +149,43 @@ class ApkArchitectureHelperTest {
         assertEquals("app-release.apk", (selected as ApkSelectionResult.Single).asset.name)
     }
 
+    @Test
+    fun isApkCompatible_respectsSpecificAbiWhenAppNameContainsUniversal() {
+        setSupportedAbis("x86_64")
+
+        // On an x86_64 device:
+        assertTrue(ApkArchitectureHelper.isApkCompatible("universal-revanced-manager-x86_64.apk"))
+        assertFalse(ApkArchitectureHelper.isApkCompatible("universal-revanced-manager-arm64-v8a.apk"))
+        assertFalse(ApkArchitectureHelper.isApkCompatible("universal-revanced-manager-armeabi-v7a.apk"))
+        assertTrue(ApkArchitectureHelper.isApkCompatible("reseam-plugin.apk"))
+    }
+
+    @Test
+    fun getVariantTitle_returnsClearReadableTitles() {
+        assertEquals("ARM64 (v8a)", ApkArchitectureHelper.getVariantTitle("universal-revanced-manager-arm64-v8a.apk"))
+        assertEquals("x86_64 (64-bit)", ApkArchitectureHelper.getVariantTitle("universal-revanced-manager-x86_64.apk"))
+        assertEquals("ARMv7 (32-bit)", ApkArchitectureHelper.getVariantTitle("universal-revanced-manager-armeabi-v7a.apk"))
+        assertEquals("reseam-plugin", ApkArchitectureHelper.getVariantTitle("reseam-plugin.apk"))
+        assertEquals("Universal", ApkArchitectureHelper.getVariantTitle("app-universal.apk"))
+    }
+
+    @Test
+    fun getArchitectureDescription_returnsAccurateLabels() {
+        assertEquals("64-bit ARM", ApkArchitectureHelper.getArchitectureDescription("universal-revanced-manager-arm64-v8a.apk"))
+        assertEquals("64-bit x86", ApkArchitectureHelper.getArchitectureDescription("universal-revanced-manager-x86_64.apk"))
+        assertEquals("32-bit ARM", ApkArchitectureHelper.getArchitectureDescription("universal-revanced-manager-armeabi-v7a.apk"))
+        assertEquals("Standard", ApkArchitectureHelper.getArchitectureDescription("reseam-plugin.apk"))
+    }
+
+    @Test
+    fun getShortArchitectureName_returnsConciseTags() {
+        assertEquals("ARM64", ApkArchitectureHelper.getShortArchitectureName("universal-revanced-manager-arm64-v8a.apk"))
+        assertEquals("x86_64", ApkArchitectureHelper.getShortArchitectureName("universal-revanced-manager-x86_64.apk"))
+        assertEquals("ARM32", ApkArchitectureHelper.getShortArchitectureName("universal-revanced-manager-armeabi-v7a.apk"))
+        assertEquals("Plugin", ApkArchitectureHelper.getShortArchitectureName("reseam-plugin.apk"))
+        assertEquals("Universal", ApkArchitectureHelper.getShortArchitectureName("app-universal.apk"))
+    }
+
     private fun apk(name: String): ReleaseAsset = ReleaseAsset(
         id = name.hashCode().toLong(),
         name = name,

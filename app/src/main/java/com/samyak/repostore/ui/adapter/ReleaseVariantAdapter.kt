@@ -1,12 +1,13 @@
 package com.samyak.repostore.ui.adapter
 
-import android.content.res.ColorStateList
+import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.color.MaterialColors
 import com.samyak.repostore.R
 import com.samyak.repostore.data.model.ReleaseAsset
 import com.samyak.repostore.databinding.ItemReleaseVariantBinding
@@ -47,10 +48,15 @@ class ReleaseVariantAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(asset: ReleaseAsset) {
-            binding.tvVariantName.text = asset.name
-            binding.tvVariantSize.text = formatFileSize(asset.size)
-
+            val variantTitle = ApkArchitectureHelper.getVariantTitle(asset.name)
+            val variantArchDesc = ApkArchitectureHelper.getArchitectureDescription(asset.name)
             val isCompatible = ApkArchitectureHelper.isApkCompatible(asset.name)
+
+            binding.tvVariantName.text = variantTitle
+            binding.tvVariantFileName.text = asset.name
+            binding.tvVariantSize.text = formatFileSize(asset.size)
+            binding.tvVariantArch.text = variantArchDesc
+
             binding.tvCompatibility.apply {
                 if (isCompatible) {
                     text = context.getString(R.string.compatible)
@@ -67,7 +73,7 @@ class ReleaseVariantAdapter(
                 android.view.View.GONE
             }
 
-            // Selected state: green check + green stroke
+            // Selected state: green check + primary stroke
             val isSelected = asset.id == selectedAssetId
             binding.ivSelectedCheck.visibility = if (isSelected) {
                 android.view.View.VISIBLE
@@ -80,11 +86,12 @@ class ReleaseVariantAdapter(
                 card.strokeColor = ContextCompat.getColor(card.context, R.color.primary)
                 card.strokeWidth = card.context.resources.getDimensionPixelSize(R.dimen.selected_stroke_width)
             } else {
-                card.strokeColor = card.context.getColor(com.google.android.material.R.attr.colorOutlineVariant.let {
-                    val typedValue = android.util.TypedValue()
-                    card.context.theme.resolveAttribute(it, typedValue, true)
-                    typedValue.resourceId
-                })
+                val outlineColor = MaterialColors.getColor(
+                    card,
+                    com.google.android.material.R.attr.colorOutlineVariant,
+                    Color.LTGRAY
+                )
+                card.strokeColor = outlineColor
                 card.strokeWidth = (1.2f * card.context.resources.displayMetrics.density).toInt()
             }
 

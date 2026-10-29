@@ -37,6 +37,32 @@ object ApkArchitectureHelper {
     private fun getPrimaryAbi(): String {
         return AbiProvider.supportedAbis().firstOrNull() ?: "arm64-v8a"
     }
+
+    /**
+     * Detect specific ABI targeting in the APK name.
+     * Returns null if the APK has no architecture-specific markers.
+     */
+    fun detectAssetAbi(apkName: String): String? {
+        val lowerName = apkName.lowercase()
+        for ((abi, patterns) in abiPatterns) {
+            if (patterns.any { pattern -> nameContainsToken(lowerName, pattern) }) {
+                return abi
+            }
+        }
+        return null
+    }
+
+    /**
+     * Returns true if this APK is an explicit universal build
+     * and does NOT target a specific restricted ABI.
+     */
+    fun isUniversalApk(apkName: String): Boolean {
+        if (detectAssetAbi(apkName) != null) {
+            return false
+        }
+        val lowerName = apkName.lowercase()
+        return universalPatterns.any { pattern -> nameContainsToken(lowerName, pattern) }
+    }
     
     /**
      * Select the best APK asset based on device architecture
@@ -44,7 +70,7 @@ object ApkArchitectureHelper {
      * Priority:
      * 1. Exact architecture match for primary ABI
      * 2. Match for any supported ABI (in priority order)
-     * 3. Universal APK
+     * 3. Universal APK (must not target a different specific ABI)
      * 4. First APK found (fallback)
      */
     fun selectBestApk(assets: List<ReleaseAsset>): ApkSelectionResult {
@@ -69,8 +95,8 @@ object ApkArchitectureHelper {
             }
         }
         
-        // Try universal APK
-        val universalApk = findApkByPatterns(apkAssets, universalPatterns)
+        // Try universal APK (must not have an explicit ABI)
+        val universalApk = apkAssets.find { isUniversalApk(it.name) }
         if (universalApk != null) {
             return ApkSelectionResult.Universal(universalApk)
         }
@@ -100,7 +126,7 @@ object ApkArchitectureHelper {
      * This avoids false positives like "install.apk" matching "all" or "alarm.apk"
      * matching "arm".
      */
-    private fun nameContainsToken(lowerName: String, token: String): Boolean {
+    fun nameContainsToken(lowerName: String, token: String): Boolean {
         val t = token.lowercase()
         if (t.isEmpty()) return false
         var idx = lowerName.indexOf(t)
@@ -129,31 +155,101 @@ object ApkArchitectureHelper {
     }
     
     /**
-     * Check if a specific APK is compatible with this device
+     * Check if a specific APK is compatible with this device.
+     * If the APK targets a specific ABI (e.g. arm64-v8a), it is only compatible if
+     * the device supports that ABI, even if the word "universal" appears in the app name.
      */
     fun isApkCompatible(apkName: String): Boolean {
-        val lowerName = apkName.lowercase()
-        val deviceAbis = getDeviceAbis()
-        
-        // 1. Check if it's a universal APK
-        if (universalPatterns.any { pattern -> nameContainsToken(lowerName, pattern) }) {
-            return true
+        val specificAbi = detectAssetAbi(apkName)
+        if (specificAbi != null) {
+            return getDeviceAbis().contains(specificAbi)
         }
         
-        // 2. Check if it matches any supported device ABI
-        for (abi in deviceAbis) {
-            val patterns = abiPatterns[abi] ?: continue
-            if (patterns.any { pattern -> nameContainsToken(lowerName, pattern) }) {
-                return true
+        val lowerName = apkName.lowercase()
+        if (nameContainsToken(lowerName, "mips") || nameContainsToken(lowerName, "mips64") ||
+            (nameContainsToken(lowerName, "riscv") && !getDeviceAbis().contains("riscv64"))) {
+            return false
+        }
+        
+        // If it has no architecture-specific markers, it is universal/compatible
+        return true
+    }
+
+    /**
+     * Returns a clear, human-readable variant title for the APK (e.g. "ARM64 (v8a)",
+     * "x86_64 (64-bit)", "Universal", or clean filename without extension).
+     */
+    fun getVariantTitle(apkName: String): String {
+        val abi = detectAssetAbi(apkName)
+        val lower = apkName.lowercase()
+        
+        val archLabel = when (abi) {
+            "arm64-v8a" -> "ARM64 (v8a)"
+            "armeabi-v7a" -> "ARMv7 (32-bit)"
+            "x86_64" -> "x86_64 (64-bit)"
+            "x86" -> "x86 (32-bit)"
+            else -> {
+                if (isUniversalApk(apkName)) {
+                    "Universal"
+                } else {
+                    null
+                }
             }
         }
         
-        // 3. If no supported architecture pattern found, check if it has UNSUPPORTED patterns
-        val allPatterns = abiPatterns.values.flatten().map { it.lowercase() }
-        val hasAnyArchPattern = allPatterns.any { pattern -> nameContainsToken(lowerName, pattern) }
+        val flavorLabel = when {
+            nameContainsToken(lower, "fdroid") || nameContainsToken(lower, "f-droid") -> "F-Droid"
+            nameContainsToken(lower, "play") || nameContainsToken(lower, "playstore") -> "Play Store"
+            nameContainsToken(lower, "debug") -> "Debug"
+            nameContainsToken(lower, "nightly") -> "Nightly"
+            nameContainsToken(lower, "beta") -> "Beta"
+            else -> null
+        }
         
-        // If it has NO arch patterns at all, assume it's probably compatible (fallback)
-        return !hasAnyArchPattern
+        if (archLabel != null) {
+            return if (flavorLabel != null) "$archLabel ($flavorLabel)" else archLabel
+        }
+        
+        val cleanName = apkName.removeSuffix(".apk").removeSuffix(".APK")
+        return when {
+            flavorLabel != null -> flavorLabel
+            cleanName.equals("app", ignoreCase = true) ||
+            cleanName.equals("release", ignoreCase = true) ||
+            cleanName.equals("app-release", ignoreCase = true) -> "Universal (All Devices)"
+            else -> cleanName
+        }
+    }
+
+    /**
+     * Returns a concise description of the architecture (e.g. "64-bit ARM", "64-bit x86", "Universal").
+     */
+    fun getArchitectureDescription(apkName: String): String {
+        val abi = detectAssetAbi(apkName)
+        return when (abi) {
+            "arm64-v8a" -> "64-bit ARM"
+            "armeabi-v7a" -> "32-bit ARM"
+            "x86_64" -> "64-bit x86"
+            "x86" -> "32-bit x86"
+            else -> if (isUniversalApk(apkName)) "Universal" else "Standard"
+        }
+    }
+
+    /**
+     * Returns a short architecture tag suitable for button subtitles (e.g. "ARM64", "x86_64", "Universal").
+     */
+    fun getShortArchitectureName(apkName: String): String {
+        val abi = detectAssetAbi(apkName)
+        return when (abi) {
+            "arm64-v8a" -> "ARM64"
+            "armeabi-v7a" -> "ARM32"
+            "x86_64" -> "x86_64"
+            "x86" -> "x86"
+            else -> when {
+                isUniversalApk(apkName) -> "Universal"
+                apkName.lowercase().contains("plugin") -> "Plugin"
+                else -> "APK"
+            }
+        }
     }
 }
 

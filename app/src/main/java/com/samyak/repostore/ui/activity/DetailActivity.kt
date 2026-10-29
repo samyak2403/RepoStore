@@ -770,17 +770,7 @@ class DetailActivity : AppCompatActivity() {
 
     private fun formatAssetSubtitle(asset: ReleaseAsset?): String? {
         if (asset == null) return null
-        
-        val lowerName = asset.name.lowercase()
-        val archStr = when {
-            lowerName.contains("arm64") || lowerName.contains("aarch64") -> "aarch64"
-            lowerName.contains("armeabi-v7a") || lowerName.contains("arm-v7a") || lowerName.contains("armv7") -> "armeabi-v7a"
-            lowerName.contains("x86_64") -> "x86_64"
-            lowerName.contains("x86") -> "x86"
-            lowerName.contains("universal") || lowerName.contains("all") -> "Universal"
-            else -> "App"
-        }
-        
+        val archStr = com.samyak.repostore.util.ApkArchitectureHelper.getShortArchitectureName(asset.name)
         val sizeMb = String.format(java.util.Locale.US, "%.1f MB", asset.size / (1024.0 * 1024.0))
         return "$archStr • $sizeMb"
     }
@@ -1055,8 +1045,11 @@ class DetailActivity : AppCompatActivity() {
                 layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this@DetailActivity)
             }
 
-            // Sort variants: Recommended first, then others
-            val sortedVariants = allApkAssets.sortedWith(compareByDescending { it.id == recommendedAssetId })
+            // Sort variants: Recommended first, then compatible, then others
+            val sortedVariants = allApkAssets.sortedWith(
+                compareByDescending<com.samyak.repostore.data.model.ReleaseAsset> { it.id == recommendedAssetId }
+                    .thenByDescending { com.samyak.repostore.util.ApkArchitectureHelper.isApkCompatible(it.name) }
+            )
             adapter.submitList(sortedVariants)
         }
 
