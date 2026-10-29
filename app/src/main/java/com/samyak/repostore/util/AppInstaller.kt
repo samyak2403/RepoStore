@@ -136,7 +136,7 @@ class AppInstaller private constructor(private val context: Context) {
                           DownloadPreferences.isMirrorProxyEnabled(context)
         
         if (useMultiPart) {
-            downloadWithMultiPart(url, fileName, onStateChanged)
+            downloadWithMultiPart(url, fileName, title, onStateChanged)
         } else {
             downloadWithDownloadManager(url, fileName, title, onStateChanged)
         }
@@ -148,6 +148,7 @@ class AppInstaller private constructor(private val context: Context) {
     private fun downloadWithMultiPart(
         url: String,
         fileName: String,
+        title: String,
         onStateChanged: (InstallState) -> Unit
     ) {
         Log.d(TAG, "Using multi-part downloader for: $url")
@@ -189,8 +190,8 @@ class AppInstaller private constructor(private val context: Context) {
                                 cleanup()
                             }
                             is MultiPartDownloader.DownloadState.Error -> {
-                                onStateChanged(InstallState.Error(state.message))
-                                cleanup()
+                                Log.w(TAG, "Multi-part download error: ${state.message}, falling back to DownloadManager")
+                                downloadWithDownloadManager(url, fileName, title, onStateChanged)
                             }
                         }
                     }
@@ -198,8 +199,8 @@ class AppInstaller private constructor(private val context: Context) {
             } catch (e: Exception) {
                 Log.e(TAG, "Multi-part download error", e)
                 mainHandler.post {
-                    onStateChanged(InstallState.Error(e.message ?: "Download failed"))
-                    cleanup()
+                    Log.w(TAG, "Multi-part exception, falling back to DownloadManager: ${e.message}")
+                    downloadWithDownloadManager(url, fileName, title, onStateChanged)
                 }
             }
         }
@@ -476,8 +477,6 @@ class AppInstaller private constructor(private val context: Context) {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                putExtra(Intent.EXTRA_RETURN_RESULT, true)
             }
             context.startActivity(intent)
             Log.d(TAG, "Install intent started successfully")
@@ -509,6 +508,7 @@ class AppInstaller private constructor(private val context: Context) {
      * Cancel current download
      */
     fun cancel() {
+        multiPartDownloader.cancel()
         if (currentDownloadId != -1L) {
             try {
                 downloadManager.remove(currentDownloadId)
@@ -543,20 +543,36 @@ class AppInstaller private constructor(private val context: Context) {
     }
 
     private fun getDownloadFile(fileName: String): File? {
-        val file = File(
+        val appDownloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+        val appFile = if (appDownloadsDir != null) File(appDownloadsDir, fileName) else null
+        if (appFile != null && appFile.exists()) return appFile
+
+        val publicFile = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             fileName
         )
-        return if (file.exists()) file else null
+        if (publicFile.exists()) return publicFile
+
+        val cacheFile = File(context.cacheDir, "downloads/$fileName")
+        if (cacheFile.exists()) return cacheFile
+
+        return null
     }
 
     private fun deleteFile(fileName: String) {
         try {
-            val file = File(
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let {
+                val f = File(it, fileName)
+                if (f.exists()) f.delete()
+            }
+            val publicFile = File(
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                 fileName
             )
-            if (file.exists()) file.delete()
+            if (publicFile.exists()) publicFile.delete()
+
+            val cacheFile = File(context.cacheDir, "downloads/$fileName")
+            if (cacheFile.exists()) cacheFile.delete()
         } catch (e: Exception) {
             Log.e(TAG, "Delete error", e)
         }

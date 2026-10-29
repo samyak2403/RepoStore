@@ -50,6 +50,13 @@
     <!-- Developer Name / Link Color -->
     <color name="developer_name_color">#0b57cf</color>
 
+    <!-- Theme Selection Card Colors -->
+    <color name="theme_card_selected_bg">#FFE8F0FE</color>
+    <color name="theme_card_selected_stroke">#FF0B57CF</color>
+    <color name="theme_card_selected_tint">#FF0B57CF</color>
+    <color name="theme_card_unselected_bg">#FFF4F4F5</color>
+    <color name="theme_card_unselected_tint">#FF52525B</color>
+
     <!-- Star Color (Warm Amber Gold) -->
     <color name="star_yellow">#FFF59E0B</color>
 

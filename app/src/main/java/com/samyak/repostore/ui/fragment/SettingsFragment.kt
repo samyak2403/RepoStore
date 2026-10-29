@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -155,50 +157,35 @@ class SettingsFragment : Fragment() {
     private fun updateThemeSelection() {
         val currentTheme = ThemePreferences.getThemeMode(requireContext())
         
-        // Helper to resolve theme attributes
-        fun getThemeColor(attrId: Int): Int {
-            val typedValue = android.util.TypedValue()
-            requireContext().theme.resolveAttribute(attrId, typedValue, true)
-            return typedValue.data
-        }
+        val selectedBgColor = ContextCompat.getColor(requireContext(), R.color.theme_card_selected_bg)
+        val selectedStrokeColor = ContextCompat.getColor(requireContext(), R.color.theme_card_selected_stroke)
+        val selectedTintColor = ContextCompat.getColor(requireContext(), R.color.theme_card_selected_tint)
 
-        // Get colors for selected and unselected states
-        // Use primary container for selected (or a distinct color)
-        val selectedColor = try {
-            getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer)
-        } catch (e: Exception) {
-            ContextCompat.getColor(requireContext(), R.color.md_theme_primaryContainer)
-        }
+        val unselectedBgColor = ContextCompat.getColor(requireContext(), R.color.theme_card_unselected_bg)
+        val unselectedTintColor = ContextCompat.getColor(requireContext(), R.color.theme_card_unselected_tint)
         
-        // Use surface color for unselected (dynamic based on theme)
-        val unselectedColor = try {
-             getThemeColor(com.google.android.material.R.attr.colorSurfaceVariant)
-        } catch (e: Exception) {
-             ContextCompat.getColor(requireContext(), R.color.md_theme_surface)
-        }
+        val strokeWidth = resources.getDimensionPixelSize(R.dimen.theme_card_stroke_width)
         
-        val strokeColor = try {
-            getThemeColor(com.google.android.material.R.attr.colorSurface)
-        } catch (e: Exception) {
-            ContextCompat.getColor(requireContext(), R.color.md_theme_primary)
-        }
-        
-        // Helper function to update card visual state
-        fun updateCard(card: MaterialCardView, isSelected: Boolean) {
+        // Helper function to update card visual state with light color effect
+        fun updateCard(card: MaterialCardView, icon: ImageView, text: TextView, isSelected: Boolean) {
             if (isSelected) {
-                card.setCardBackgroundColor(selectedColor)
-                card.strokeWidth = resources.getDimensionPixelSize(R.dimen.theme_card_stroke_width)
-                card.strokeColor = strokeColor
+                card.setCardBackgroundColor(selectedBgColor)
+                card.strokeWidth = strokeWidth
+                card.strokeColor = selectedStrokeColor
+                icon.imageTintList = ColorStateList.valueOf(selectedTintColor)
+                text.setTextColor(selectedTintColor)
             } else {
-                card.setCardBackgroundColor(unselectedColor)
+                card.setCardBackgroundColor(unselectedBgColor)
                 card.strokeWidth = 0
+                icon.imageTintList = ColorStateList.valueOf(unselectedTintColor)
+                text.setTextColor(unselectedTintColor)
             }
         }
         
-        updateCard(binding.themeSystemCard, currentTheme == ThemePreferences.THEME_SYSTEM)
-        updateCard(binding.themeForYouCard, currentTheme == ThemePreferences.THEME_FOR_YOU)
-        updateCard(binding.themeDarkCard, currentTheme == ThemePreferences.THEME_DARK)
-        updateCard(binding.themeLightCard, currentTheme == ThemePreferences.THEME_LIGHT)
+        updateCard(binding.themeSystemCard, binding.ivThemeSystem, binding.tvThemeSystem, currentTheme == ThemePreferences.THEME_SYSTEM)
+        updateCard(binding.themeForYouCard, binding.ivThemeForYou, binding.tvThemeForYou, currentTheme == ThemePreferences.THEME_FOR_YOU)
+        updateCard(binding.themeDarkCard, binding.ivThemeDark, binding.tvThemeDark, currentTheme == ThemePreferences.THEME_DARK)
+        updateCard(binding.themeLightCard, binding.ivThemeLight, binding.tvThemeLight, currentTheme == ThemePreferences.THEME_LIGHT)
     }
 
     private fun setupMyAppsSection() {

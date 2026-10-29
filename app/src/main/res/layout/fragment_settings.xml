@@ -192,6 +192,7 @@
                             <ImageView
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
+                                android:id="@+id/iv_theme_system"
                                 android:contentDescription="@string/theme_system"
                                 android:src="@drawable/ic_settings"
                                 app:tint="?attr/colorOnSurface" />
@@ -200,6 +201,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
+                                android:id="@+id/tv_theme_system"
                                 android:text="@string/theme_system"
                                 android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                                 android:textColor="?attr/colorOnSurface" />
@@ -232,6 +234,7 @@
                             <ImageView
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
+                                android:id="@+id/iv_theme_for_you"
                                 android:contentDescription="@string/theme_for_you"
                                 android:src="@drawable/ic_favorite"
                                 app:tint="?attr/colorOnSurface" />
@@ -240,6 +243,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
+                                android:id="@+id/tv_theme_for_you"
                                 android:text="@string/theme_for_you"
                                 android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                                 android:textColor="?attr/colorOnSurface" />
@@ -280,6 +284,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
+                                android:id="@+id/tv_theme_dark"
                                 android:text="@string/theme_dark"
                                 android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                                 android:textColor="?attr/colorOnSurface" />
@@ -319,6 +324,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
+                                android:id="@+id/tv_theme_light"
                                 android:text="@string/theme_light"
                                 android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                                 android:textColor="?attr/colorOnSurface" />

@@ -49,6 +49,13 @@
     <!-- Developer Name / Link Color -->
     <color name="developer_name_color">#7ca1fa</color>
 
+    <!-- Theme Selection Card Colors (Dark Mode) -->
+    <color name="theme_card_selected_bg">#FF172E4D</color>
+    <color name="theme_card_selected_stroke">#FF7CA1FA</color>
+    <color name="theme_card_selected_tint">#FF7CA1FA</color>
+    <color name="theme_card_unselected_bg">#FF18181B</color>
+    <color name="theme_card_unselected_tint">#FFA1A1AA</color>
+
     <!-- Security Badge Colors (VirusTotal Dark) -->
     <color name="badge_safe_bg">#FF0C2B1B</color>
     <color name="badge_safe_text">#FF34D399</color>

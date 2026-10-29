@@ -43,6 +43,25 @@ fun Fragment.showLanguageDialog() {
         selectedTag = currentLocales.get(0)?.toLanguageTag()
     }
 
+    // Resolve theme colors dynamically
+    val typedValue = android.util.TypedValue()
+    val theme = context.theme
+
+    fun resolveColor(attr: Int, fallbackColor: Int): Int {
+        return if (theme.resolveAttribute(attr, typedValue, true)) {
+            typedValue.data
+        } else {
+            fallbackColor
+        }
+    }
+
+    val onSurfaceColor = resolveColor(com.google.android.material.R.attr.colorOnSurface, android.graphics.Color.BLACK)
+    val onSurfaceVariantColor = resolveColor(com.google.android.material.R.attr.colorOnSurfaceVariant, android.graphics.Color.GRAY)
+    val dividerColor = resolveColor(com.google.android.material.R.attr.colorOutlineVariant, android.graphics.Color.parseColor("#30808080"))
+
+    val selectedBgColor = androidx.core.content.ContextCompat.getColor(context, R.color.theme_card_selected_bg)
+    val selectedStrokeColor = androidx.core.content.ContextCompat.getColor(context, R.color.theme_card_selected_stroke)
+
     // Build custom layout with search EditText + ListView
     val container = android.widget.LinearLayout(context).apply {
         orientation = android.widget.LinearLayout.VERTICAL
@@ -54,12 +73,14 @@ fun Fragment.showLanguageDialog() {
         hint = getString(R.string.search_language)
         inputType = android.text.InputType.TYPE_CLASS_TEXT
         setSingleLine(true)
+        setTextColor(onSurfaceColor)
+        setHintTextColor(onSurfaceVariantColor)
+        background = null
         val dp16 = (16 * resources.displayMetrics.density).toInt()
         setPadding(dp16, dp16, dp16, dp16)
         val searchIcon = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_search)?.mutate()
         if (searchIcon != null) {
-            val primaryColor = androidx.core.content.ContextCompat.getColor(context, R.color.primary)
-            androidx.core.graphics.drawable.DrawableCompat.setTint(searchIcon, primaryColor)
+            androidx.core.graphics.drawable.DrawableCompat.setTint(searchIcon, onSurfaceVariantColor)
             setCompoundDrawablesWithIntrinsicBounds(searchIcon, null, null, null)
         }
         compoundDrawablePadding = (8 * resources.displayMetrics.density).toInt()
@@ -72,7 +93,7 @@ fun Fragment.showLanguageDialog() {
             android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
             (1 * resources.displayMetrics.density).toInt()
         )
-        setBackgroundColor(android.graphics.Color.parseColor("#30808080"))
+        setBackgroundColor(dividerColor)
     }
     container.addView(divider)
 
@@ -102,11 +123,6 @@ fun Fragment.showLanguageDialog() {
                 item.locale.toLanguageTag() == selectedTag
             }
 
-            // Define colors directly from colors.xml
-            val primaryColor = androidx.core.content.ContextCompat.getColor(context, R.color.primary)
-            val containerColor = androidx.core.content.ContextCompat.getColor(context, R.color.transparent)
-            val onSurfaceColor = androidx.core.content.ContextCompat.getColor(context, R.color.white)
-
             val dp8 = (8 * resources.displayMetrics.density).toInt()
             val dp12 = (12 * resources.displayMetrics.density).toInt()
             val dp16 = (16 * resources.displayMetrics.density).toInt()
@@ -127,10 +143,10 @@ fun Fragment.showLanguageDialog() {
                 if (isSelected) {
                     val bg = android.graphics.drawable.GradientDrawable().apply {
                         cornerRadius = (12 * resources.displayMetrics.density)
-                        setColor(containerColor)
+                        setColor(selectedBgColor)
                         setStroke(
                             (2 * resources.displayMetrics.density).toInt(),
-                            primaryColor
+                            selectedStrokeColor
                         )
                     }
                     background = bg
@@ -147,7 +163,9 @@ fun Fragment.showLanguageDialog() {
                 isChecked = isSelected
                 isClickable = false
                 isFocusable = false
-                buttonTintList = android.content.res.ColorStateList.valueOf(primaryColor)
+                buttonTintList = android.content.res.ColorStateList.valueOf(
+                    if (isSelected) selectedStrokeColor else onSurfaceVariantColor
+                )
             }
             row.addView(radio)
 
@@ -165,7 +183,12 @@ fun Fragment.showLanguageDialog() {
             val nameView = android.widget.TextView(context).apply {
                 text = item.displayName
                 textSize = 16f
-                setTextColor(if (isSelected) primaryColor else onSurfaceColor)
+                setTextColor(if (isSelected) selectedStrokeColor else onSurfaceColor)
+                if (isSelected) {
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                } else {
+                    typeface = android.graphics.Typeface.DEFAULT
+                }
             }
             textContainer.addView(nameView)
 
@@ -174,7 +197,7 @@ fun Fragment.showLanguageDialog() {
                 val subView = android.widget.TextView(context).apply {
                     text = item.englishName
                     textSize = 13f
-                    setTextColor(android.graphics.Color.GRAY)
+                    setTextColor(if (isSelected) selectedStrokeColor else onSurfaceVariantColor)
                 }
                 textContainer.addView(subView)
             }
