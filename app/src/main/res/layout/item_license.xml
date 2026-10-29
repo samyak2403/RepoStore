@@ -2,12 +2,15 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
-    app:cardBackgroundColor="@android:color/transparent"
-    app:cardCornerRadius="12dp"
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutlineVariant"
     app:rippleColor="?attr/colorPrimary">
 
     <LinearLayout
@@ -16,31 +19,54 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <TextView
-            android:id="@+id/tv_library_name"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-            android:textColor="?attr/colorOnSurface" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tv_library_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textStyle="bold"
+                android:textColor="?attr/colorOnSurface"
+                tools:text="RepoStore" />
+
+            <TextView
+                android:id="@+id/tv_license_type"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_license_chip"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:textStyle="bold"
+                android:textColor="?attr/colorPrimary"
+                tools:text="MIT" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_library_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            tools:text="Open source GitHub app store and APK installer for Android" />
 
         <TextView
             android:id="@+id/tv_library_author"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
-
-        <TextView
-            android:id="@+id/tv_license_type"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/bg_license_chip"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp"
-            android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
-            android:textColor="?attr/colorPrimary" />
+            android:layout_marginTop="6dp"
+            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+            android:textColor="?attr/colorOutline"
+            tools:text="Samyak Kamble" />
 
     </LinearLayout>
 

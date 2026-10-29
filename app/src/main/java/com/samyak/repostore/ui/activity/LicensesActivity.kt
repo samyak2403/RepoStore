@@ -69,138 +69,161 @@ class LicensesActivity : AppCompatActivity() {
                     name = "RepoStore",
                     author = "Samyak Kamble",
                     license = "MIT",
+                    description = "Open source GitHub app store and APK installer for modern Android devices",
                     url = "https://github.com/samyak2403/RepoStore"
                 ),
                 LibraryInfo(
                     name = "AndroidX Core KTX",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Kotlin extensions for standard Android framework APIs and compatibility utilities",
                     url = "https://developer.android.com/jetpack/androidx"
                 ),
                 LibraryInfo(
                     name = "AndroidX AppCompat",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Backward-compatible support for Android modern action bars, themes, and Material design",
                     url = "https://developer.android.com/jetpack/androidx"
                 ),
                 LibraryInfo(
                     name = "AndroidX Activity KTX",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Kotlin extensions for Activity lifecycle handling and modern Activity Result APIs",
                     url = "https://developer.android.com/jetpack/androidx/releases/activity"
                 ),
                 LibraryInfo(
                     name = "AndroidX Fragment KTX",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Kotlin extensions for Fragment transactions, view lifecycle, and ViewModel scoping",
                     url = "https://developer.android.com/jetpack/androidx/releases/fragment"
                 ),
                 LibraryInfo(
                     name = "Material Components",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Material Design 3 components, interactive widgets, color theming, and animations",
                     url = "https://github.com/material-components/material-components-android"
                 ),
                 LibraryInfo(
                     name = "AndroidX ConstraintLayout",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Flexible constraint-based layout manager for responsive and flattened view hierarchies",
                     url = "https://developer.android.com/jetpack/androidx/releases/constraintlayout"
                 ),
                 LibraryInfo(
                     name = "AndroidX ViewPager2",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "RecyclerView-backed view pager supporting swipable tabs, carousels, and RTL layouts",
                     url = "https://developer.android.com/jetpack/androidx/releases/viewpager2"
                 ),
                 LibraryInfo(
                     name = "AndroidX Lifecycle",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Lifecycle-aware components, ViewModels, and LiveData for robust MVVM architecture",
                     url = "https://developer.android.com/jetpack/androidx/releases/lifecycle"
                 ),
                 LibraryInfo(
                     name = "AndroidX WorkManager",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Persistent, deferrable background job scheduling for periodic app update checks",
                     url = "https://developer.android.com/jetpack/androidx/releases/work"
                 ),
                 LibraryInfo(
                     name = "Room Database",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "SQLite object-mapping abstraction layer for persistent local repository caching",
                     url = "https://developer.android.com/jetpack/androidx/releases/room"
                 ),
                 LibraryInfo(
                     name = "SwipeRefreshLayout",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "Pull-to-refresh swipe gesture widget for reloading repository feeds and release data",
                     url = "https://developer.android.com/jetpack/androidx/releases/swiperefreshlayout"
                 ),
                 LibraryInfo(
                     name = "Kotlin Standard Library",
                     author = "JetBrains",
                     license = "Apache 2.0",
+                    description = "Core standard library primitives, collections, and algorithms for Kotlin",
                     url = "https://github.com/JetBrains/kotlin"
                 ),
                 LibraryInfo(
                     name = "Kotlin Coroutines",
                     author = "JetBrains",
                     license = "Apache 2.0",
+                    description = "Lightweight asynchronous concurrency framework for non-blocking background operations",
                     url = "https://github.com/Kotlin/kotlinx.coroutines"
                 ),
                 LibraryInfo(
                     name = "Retrofit",
                     author = "Square",
                     license = "Apache 2.0",
+                    description = "Type-safe HTTP client for communicating with GitHub REST API endpoints",
                     url = "https://github.com/square/retrofit"
                 ),
                 LibraryInfo(
                     name = "OkHttp",
                     author = "Square",
                     license = "Apache 2.0",
+                    description = "Efficient HTTP client engine with connection pooling, GZIP, and disk cache support",
                     url = "https://github.com/square/okhttp"
                 ),
                 LibraryInfo(
                     name = "Gson",
                     author = "Google",
                     license = "Apache 2.0",
+                    description = "JSON serialization and deserialization library for converting GitHub API responses",
                     url = "https://github.com/google/gson"
                 ),
                 LibraryInfo(
                     name = "Glide",
                     author = "Bump Technologies",
-                    license = "BSD / Apache 2.0",
+                    license = "BSD 2-Clause",
+                    description = "High-performance media loading and image caching framework for app icons and screenshots",
                     url = "https://github.com/bumptech/glide"
                 ),
                 LibraryInfo(
                     name = "Markwon",
                     author = "Dimitry Ivanov",
                     license = "Apache 2.0",
+                    description = "Markdown rendering engine for displaying GitHub READMEs, markdown tables, and release notes",
                     url = "https://github.com/noties/Markwon"
                 ),
                 LibraryInfo(
                     name = "PhotoView",
                     author = "GetStream",
                     license = "Apache 2.0",
+                    description = "Pinch-to-zoom, panning, and gesture-driven image viewer for app screenshot previews",
                     url = "https://github.com/GetStream/photoview-android"
                 ),
                 LibraryInfo(
                     name = "Lottie Android",
                     author = "Airbnb",
                     license = "Apache 2.0",
+                    description = "Animation library that parses Adobe After Effects vector animations exported as JSON",
                     url = "https://github.com/airbnb/lottie-android"
                 ),
                 LibraryInfo(
                     name = "DotsIndicator",
                     author = "Tommaso Buonomo",
                     license = "Apache 2.0",
+                    description = "Animated spring dots pager indicator for ViewPager2 screenshot carousels",
                     url = "https://github.com/tommybuonomo/dotsindicator"
                 ),
                 LibraryInfo(
                     name = "ZXing",
                     author = "ZXing Authors",
                     license = "Apache 2.0",
+                    description = "Multi-format 1D/2D barcode image processing library for crypto donation QR codes",
                     url = "https://github.com/zxing/zxing"
                 )
             )

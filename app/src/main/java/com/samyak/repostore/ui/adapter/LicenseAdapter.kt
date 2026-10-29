@@ -1,6 +1,7 @@
 package com.samyak.repostore.ui.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.samyak.repostore.databinding.ItemLicenseBinding
@@ -9,7 +10,8 @@ data class LibraryInfo(
     val name: String,
     val author: String,
     val license: String,
-    val url: String
+    val url: String,
+    val description: String? = null
 )
 
 class LicenseAdapter(
@@ -22,8 +24,14 @@ class LicenseAdapter(
 
         fun bind(library: LibraryInfo) {
             binding.tvLibraryName.text = library.name
-            binding.tvLibraryAuthor.text = library.author
             binding.tvLicenseType.text = library.license
+            binding.tvLibraryAuthor.text = library.author
+            if (!library.description.isNullOrBlank()) {
+                binding.tvLibraryDescription.text = library.description
+                binding.tvLibraryDescription.visibility = View.VISIBLE
+            } else {
+                binding.tvLibraryDescription.visibility = View.GONE
+            }
             binding.root.setOnClickListener { onItemClick(library) }
         }
     }
