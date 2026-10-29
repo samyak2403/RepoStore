@@ -2,7 +2,8 @@ package com.samyak.repostore.util
 
 /**
  * Utility for comparing version strings from GitHub releases with installed app versions.
- * Handles various version formats like "v1.2.3", "1.2.3", "2.0.0-beta", "1.0.0-rc1", etc.
+ * Handles various version formats like "v1.2.3", "1.2.3", "2.0.0-beta", "1.0.0-rc1",
+ * app-prefixed tags ("termux-v0.118.0", "app-1.2.3"), and version codes in parens ("1.2.0 (42)").
  */
 object VersionComparator {
 
@@ -22,26 +23,14 @@ object VersionComparator {
         "apk"
     )
 
-    private val PREFIXES = listOf(
-        "release-",
-        "Release-",
-        "version-",
-        "Version-",
-        "version",
-        "Version",
-        "ver-",
-        "Ver-",
-        "ver",
-        "Ver",
-        "v",
-        "V"
-    )
+    private val SEMVER_REGEX = Regex("""(\d+(?:\.\d+)+)""")
+    private val SINGLE_INT_REGEX = Regex("""\d+""")
 
     /**
      * Check if the latest version is newer than the current installed version.
      * 
-     * @param installedVersion The version string of the installed app (e.g., "1.2.3")
-     * @param latestVersion The version string from GitHub release tag (e.g., "v1.2.4")
+     * @param installedVersion The version string of the installed app (e.g., "1.2.3" or "1.2.3 (42)")
+     * @param latestVersion The version string from GitHub release tag (e.g., "v1.2.4" or "app-v1.2.4")
      * @return true if latestVersion is newer than installedVersion
      */
     fun isNewerVersion(installedVersion: String, latestVersion: String): Boolean {
@@ -83,36 +72,30 @@ object VersionComparator {
     }
     
     /**
-     * Extract the pre-release identifier (the part after the first '-' or '_' in the
-     * core-stripped version), e.g. "v1.2.3-rc2" -> "rc2". Returns "" when absent
-     * or when the suffix is a packaging/flavor suffix (e.g. "-release", "-fdroid").
+     * Extract the pre-release identifier (the part after the semantic version digits),
+     * e.g. "v1.2.3-rc2" -> "rc2". Returns "" when absent or when the suffix is a
+     * packaging/flavor suffix (e.g. "-release", "-fdroid", "-universal").
      */
     private fun extractPreRelease(version: String): String {
-        var normalized = version.trim()
+        val trimmed = version.trim()
+        val match = SEMVER_REGEX.find(trimmed) ?: return ""
+        val afterSemver = trimmed.substring(match.range.last + 1)
         
-        // Strip build metadata after '+'
-        val plusIndex = normalized.indexOf('+')
-        if (plusIndex >= 0) {
-            normalized = normalized.substring(0, plusIndex)
-        }
-
-        for (prefix in PREFIXES) {
-            if (normalized.startsWith(prefix, ignoreCase = true)) {
-                normalized = normalized.substring(prefix.length)
-                break
-            }
-        }
+        // Strip build metadata after '+', comment/code in '(', '[', or spaces
+        val cleanAfter = afterSemver
+            .substringBefore('+')
+            .substringBefore('(')
+            .substringBefore('[')
+            .substringBefore(' ')
+            .trimStart('-', '_')
+            .lowercase()
+            .trim()
         
-        val sepIndex = normalized.indexOfFirst { it == '-' || it == '_' }
-        if (sepIndex < 0) return ""
-        val suffix = normalized.substring(sepIndex + 1).lowercase().trim()
-        
-        // If suffix is a known flavor/packaging suffix, treat as base semantic version
-        if (FLAVOR_SUFFIXES.contains(suffix)) {
+        if (cleanAfter.isEmpty() || FLAVOR_SUFFIXES.contains(cleanAfter)) {
             return ""
         }
         
-        return suffix
+        return cleanAfter
     }
     
     /**
@@ -139,50 +122,17 @@ object VersionComparator {
     }
     
     /**
-     * Normalize a version string by removing common prefixes, build metadata after '+',
-     * and suffixes after '-' or '_'.
-     * Examples:
-     * - "v1.2.3" -> "1.2.3"
-     * - "release-1.2.0" -> "1.2.0"
-     * - "v1.2.0-release" -> "1.2.0"
-     * - "v1.2.0+build4" -> "1.2.0"
-     * - "1.2.3-beta" -> "1.2.3"
+     * Normalize a version string by extracting the core numeric version (e.g. "1.2.3").
+     * Handles prefixes ("v", "release-", "termux-v"), build metadata ("+build4"),
+     * version codes in parentheses ("1.2.0 (42)"), and flavors ("-universal").
      */
     fun normalizeVersion(version: String): String {
-        var normalized = version.trim()
-        
-        // Strip build metadata after '+' (e.g., "1.2.0+build4" -> "1.2.0")
-        val plusIndex = normalized.indexOf('+')
-        if (plusIndex >= 0) {
-            normalized = normalized.substring(0, plusIndex)
+        val trimmed = version.trim()
+        val semverMatch = SEMVER_REGEX.find(trimmed)
+        if (semverMatch != null) {
+            return semverMatch.groupValues[1]
         }
-
-        // Remove common prefixes
-        for (prefix in PREFIXES) {
-            if (normalized.startsWith(prefix, ignoreCase = true)) {
-                normalized = normalized.substring(prefix.length)
-                break
-            }
-        }
-        
-        // Remove suffixes after hyphen (e.g., "-beta", "-rc1", "-alpha", "-release")
-        val hyphenIndex = normalized.indexOf('-')
-        if (hyphenIndex > 0) {
-            normalized = normalized.substring(0, hyphenIndex)
-        }
-        
-        // Remove suffixes after underscore (e.g., "_beta", "_rc1")
-        val underscoreIndex = normalized.indexOf('_')
-        if (underscoreIndex > 0) {
-            normalized = normalized.substring(0, underscoreIndex)
-        }
-        
-        // Keep only digits and dots
-        normalized = normalized.replace(Regex("[^0-9.]"), "")
-        
-        // Remove leading/trailing dots
-        normalized = normalized.trim('.')
-        
-        return normalized
+        val singleIntMatch = SINGLE_INT_REGEX.find(trimmed)
+        return singleIntMatch?.value ?: ""
     }
 }

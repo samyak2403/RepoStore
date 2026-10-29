@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.samyak.repostore.R
 import com.samyak.repostore.databinding.ItemAppUpdateBinding
 import com.samyak.repostore.ui.viewmodel.AppUpdate
+import com.samyak.repostore.util.ApkArchitectureHelper
 import java.util.Locale
 
 class AppUpdateAdapter(
@@ -61,7 +62,9 @@ class AppUpdateAdapter(
 
         fun bind(item: AppUpdate) {
             binding.tvAppName.text = item.appName
-            binding.tvAppSize.text = formatSize(item.sizeBytes)
+            binding.tvVersionDiff.text = "${item.installedVersion} → ${item.latestVersion}"
+            val arch = ApkArchitectureHelper.getShortArchitectureName(item.asset.name)
+            binding.tvAppSize.text = "${formatSize(item.sizeBytes)} • $arch"
 
             // Load the installed app's real launcher icon, fall back to placeholder.
             try {
@@ -96,7 +99,7 @@ class AppUpdateAdapter(
         if (bytes <= 0L) return "—"
         val mb = bytes / (1024.0 * 1024.0)
         return if (mb >= 1.0) {
-            String.format(Locale.US, "%.0f MB", mb)
+            String.format(Locale.US, "%.1f MB", mb)
         } else {
             String.format(Locale.US, "%.0f KB", bytes / 1024.0)
         }

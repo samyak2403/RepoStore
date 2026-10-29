@@ -3,7 +3,10 @@ package com.samyak.repostore.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.samyak.repostore.data.db.CachedRepoDao
+import com.samyak.repostore.data.db.FavoriteAppDao
 import com.samyak.repostore.data.db.InstalledAppMappingDao
+import com.samyak.repostore.data.model.InstalledAppMapping
 import com.samyak.repostore.data.model.ReleaseAsset
 import com.samyak.repostore.data.repository.GitHubRepository
 import com.samyak.repostore.util.AppInstaller
@@ -18,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 /**
@@ -45,14 +50,19 @@ sealed class AppUpdatesUiState {
 class AppUpdatesViewModel(
     private val repository: GitHubRepository,
     private val installedAppMappingDao: InstalledAppMappingDao,
-    private val appInstaller: AppInstaller
+    private val favoriteAppDao: FavoriteAppDao? = null,
+    private val cachedRepoDao: CachedRepoDao? = null,
+    private val appInstaller: AppInstaller,
+    autoRefresh: Boolean = true
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AppUpdatesUiState>(AppUpdatesUiState.Loading)
     val uiState: StateFlow<AppUpdatesUiState> = _uiState.asStateFlow()
 
     init {
-        refresh()
+        if (autoRefresh) {
+            refresh()
+        }
     }
 
     fun refresh() {
@@ -71,50 +81,129 @@ class AppUpdatesViewModel(
         }
     }
 
-    private suspend fun loadUpdates(): List<AppUpdate> = withContext(Dispatchers.IO) {
-        val mappings = installedAppMappingDao.getAllMappingsFlow().first()
+    private data class Candidate(
+        val owner: String,
+        val repo: String,
+        val packageName: String
+    )
 
-        mappings.map { mapping ->
-            async {
-                try {
-                    val packageName = mapping.packageName
-                    if (!appInstaller.isInstalled(packageName)) return@async null
+    internal suspend fun loadUpdates(): List<AppUpdate> = withContext(Dispatchers.IO) {
+        val candidates = mutableMapOf<String, Candidate>()
 
-                    val installedVersion = appInstaller.getInstalledVersion(packageName)
-                        ?: return@async null
+        // 1. Existing tracked mappings (apps installed through RepoStore or previously detected)
+        val mappings = try {
+            installedAppMappingDao.getAllMappingsFlow().first()
+        } catch (_: Exception) {
+            emptyList()
+        }
+        for (m in mappings) {
+            if (appInstaller.isInstalled(m.packageName)) {
+                candidates[m.packageName] = Candidate(m.ownerName, m.repoName, m.packageName)
+            }
+        }
 
-                    val release = repository.getLatestRelease(
-                        mapping.ownerName,
-                        mapping.repoName,
-                        forceRefresh = true
-                    ).getOrNull() ?: return@async null
-
-                    if (release.draft) return@async null
-                    val latestTag = release.tagName.takeIf { it.isNotBlank() } ?: return@async null
-
-                    if (!VersionComparator.isNewerVersion(installedVersion, latestTag)) return@async null
-
-                    val asset = when (val selection = ApkArchitectureHelper.selectBestApk(release.assets)) {
-                        is ApkSelectionResult.Single -> selection.asset
-                        is ApkSelectionResult.ExactMatch -> selection.asset
-                        is ApkSelectionResult.Universal -> selection.asset
-                        is ApkSelectionResult.Fallback -> selection.asset
-                        is ApkSelectionResult.NoApkFound -> return@async null
+        // 2. Discover installed apps from user's Favorites
+        favoriteAppDao?.let { favDao ->
+            try {
+                val favorites = favDao.getAllFavoritesSync()
+                for (fav in favorites) {
+                    val key = "${fav.ownerLogin}/${fav.name}".lowercase()
+                    if (candidates.values.any { "${it.owner}/${it.repo}".lowercase() == key }) {
+                        continue
                     }
+                    val mappedPkg = installedAppMappingDao.getPackageName(fav.ownerLogin, fav.name)
+                    val pkg = if (mappedPkg != null && appInstaller.isInstalled(mappedPkg)) {
+                        mappedPkg
+                    } else {
+                        appInstaller.findPackage(fav.name, fav.ownerLogin)
+                    }
+                    if (pkg != null && appInstaller.isInstalled(pkg)) {
+                        candidates[pkg] = Candidate(fav.ownerLogin, fav.name, pkg)
+                        try {
+                            installedAppMappingDao.saveMapping(
+                                InstalledAppMapping(fav.ownerLogin, fav.name, pkg)
+                            )
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
 
-                    val appName = appInstaller.getAppLabel(packageName) ?: mapping.repoName
+        // 3. Discover installed apps from Cached Repositories
+        cachedRepoDao?.let { cacheDao ->
+            try {
+                val cachedRepos = cacheDao.getAllCachedRepos()
+                for (cached in cachedRepos) {
+                    val key = "${cached.ownerLogin}/${cached.name}".lowercase()
+                    if (candidates.values.any { "${it.owner}/${it.repo}".lowercase() == key }) {
+                        continue
+                    }
+                    val mappedPkg = installedAppMappingDao.getPackageName(cached.ownerLogin, cached.name)
+                    val pkg = if (mappedPkg != null && appInstaller.isInstalled(mappedPkg)) {
+                        mappedPkg
+                    } else {
+                        appInstaller.findPackage(cached.name, cached.ownerLogin)
+                    }
+                    if (pkg != null && appInstaller.isInstalled(pkg)) {
+                        candidates[pkg] = Candidate(cached.ownerLogin, cached.name, pkg)
+                        try {
+                            installedAppMappingDao.saveMapping(
+                                InstalledAppMapping(cached.ownerLogin, cached.name, pkg)
+                            )
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
 
-                    AppUpdate(
-                        owner = mapping.ownerName,
-                        repo = mapping.repoName,
-                        packageName = packageName,
-                        appName = appName,
-                        installedVersion = installedVersion,
-                        latestVersion = latestTag,
-                        asset = asset
-                    )
-                } catch (e: Exception) {
-                    null
+        // Controlled concurrency to prevent hitting GitHub secondary rate limits
+        val semaphore = Semaphore(3)
+
+        candidates.values.map { candidate ->
+            async {
+                semaphore.withPermit {
+                    try {
+                        val packageName = candidate.packageName
+                        if (!appInstaller.isInstalled(packageName)) return@withPermit null
+
+                        val installedVersion = appInstaller.getInstalledVersion(packageName)
+                            ?: return@withPermit null
+
+                        val release = repository.getLatestRelease(
+                            candidate.owner,
+                            candidate.repo,
+                            forceRefresh = true
+                        ).getOrNull() ?: return@withPermit null
+
+                        if (release.draft) return@withPermit null
+                        val latestTag = release.tagName.takeIf { it.isNotBlank() } ?: return@withPermit null
+
+                        if (!VersionComparator.isNewerVersion(installedVersion, latestTag)) {
+                            return@withPermit null
+                        }
+
+                        val asset = when (val selection = ApkArchitectureHelper.selectBestApk(release.assets)) {
+                            is ApkSelectionResult.Single -> selection.asset
+                            is ApkSelectionResult.ExactMatch -> selection.asset
+                            is ApkSelectionResult.Universal -> selection.asset
+                            is ApkSelectionResult.Fallback -> selection.asset
+                            is ApkSelectionResult.NoApkFound -> return@withPermit null
+                        }
+
+                        val appName = appInstaller.getAppLabel(packageName) ?: candidate.repo
+
+                        AppUpdate(
+                            owner = candidate.owner,
+                            repo = candidate.repo,
+                            packageName = packageName,
+                            appName = appName,
+                            installedVersion = installedVersion,
+                            latestVersion = latestTag,
+                            asset = asset
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
                 }
             }
         }.awaitAll().filterNotNull().sortedBy { it.appName.lowercase() }
@@ -124,12 +213,20 @@ class AppUpdatesViewModel(
 class AppUpdatesViewModelFactory(
     private val repository: GitHubRepository,
     private val installedAppMappingDao: InstalledAppMappingDao,
+    private val favoriteAppDao: FavoriteAppDao? = null,
+    private val cachedRepoDao: CachedRepoDao? = null,
     private val appInstaller: AppInstaller
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AppUpdatesViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return AppUpdatesViewModel(repository, installedAppMappingDao, appInstaller) as T
+            return AppUpdatesViewModel(
+                repository = repository,
+                installedAppMappingDao = installedAppMappingDao,
+                favoriteAppDao = favoriteAppDao,
+                cachedRepoDao = cachedRepoDao,
+                appInstaller = appInstaller
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -59,5 +59,21 @@ class VersionComparatorTest {
         assertTrue(VersionComparator.isNewerVersion("1.1.9", "release-1.2.0"))
         assertFalse(VersionComparator.isNewerVersion("1.2.0", "release-1.2.0"))
     }
-}
 
+    @Test
+    fun isNewerVersion_withAppPrefixedTags() {
+        // Many GitHub repos prefix the tag with app name or repo name
+        assertTrue(VersionComparator.isNewerVersion("0.117.0", "termux-v0.118.0"))
+        assertFalse(VersionComparator.isNewerVersion("0.118.0", "termux-v0.118.0"))
+        assertTrue(VersionComparator.isNewerVersion("1.9.4", "revanced-v1.9.5"))
+        assertTrue(VersionComparator.isNewerVersion("1.0.0", "app-1.0.1"))
+    }
+
+    @Test
+    fun isNewerVersion_withVersionCodeInParentheses() {
+        // Android packageInfo.versionName often has versionCode in parentheses
+        assertTrue(VersionComparator.isNewerVersion("1.2.0 (42)", "v1.2.1"))
+        assertFalse(VersionComparator.isNewerVersion("1.2.0 (42)", "v1.2.0"))
+        assertFalse(VersionComparator.isNewerVersion("1.2.1 (42)", "v1.2.0"))
+    }
+}

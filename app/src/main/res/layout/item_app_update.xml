@@ -37,18 +37,31 @@
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:textColor="?attr/colorOnSurface"
+            android:textStyle="bold"
             tools:text="Facebook" />
 
         <TextView
-            android:id="@+id/tv_app_size"
+            android:id="@+id/tv_version_diff"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorPrimary"
+            android:textStyle="bold"
+            tools:text="1.2.0 → 1.3.0" />
+
+        <TextView
+            android:id="@+id/tv_app_size"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
             android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="114 MB" />
+            tools:text="114 MB • APK" />
 
     </LinearLayout>
 

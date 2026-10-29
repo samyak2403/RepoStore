@@ -172,6 +172,7 @@
     <string name="checking_for_updates">Checking for updates…</string>
     <string name="no_updates_available">You\'re all up to date</string>
     <string name="no_updates_available_hint">Apps installed via RepoStore with available updates will appear here</string>
+    <string name="check_for_updates">Check for updates</string>
     <string name="updates_check_failed">Couldn\'t check for updates</string>
     <string name="updating_app">Updating %1$s…</string>
 

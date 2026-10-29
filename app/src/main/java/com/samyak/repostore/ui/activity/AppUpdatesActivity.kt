@@ -2,10 +2,13 @@ package com.samyak.repostore.ui.activity
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -33,7 +36,13 @@ class AppUpdatesActivity : AppCompatActivity() {
 
     private val viewModel: AppUpdatesViewModel by viewModels {
         val app = application as RepoStoreApp
-        AppUpdatesViewModelFactory(app.repository, app.installedAppMappingDao, AppInstaller.getInstance(this))
+        AppUpdatesViewModelFactory(
+            repository = app.repository,
+            installedAppMappingDao = app.installedAppMappingDao,
+            favoriteAppDao = app.favoriteAppDao,
+            cachedRepoDao = app.database.cachedRepoDao(),
+            appInstaller = AppInstaller.getInstance(this)
+        )
     }
 
     // Current list being displayed (mutable so we can drop items as they finish updating).
@@ -43,6 +52,22 @@ class AppUpdatesActivity : AppCompatActivity() {
     private val updateQueue = ArrayDeque<AppUpdate>()
     private val queuedPackages = mutableSetOf<String>()
     private var isProcessing = false
+
+    private val unknownSourcesLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (canInstall()) {
+            processQueue()
+        }
+    }
+
+    private fun canInstall(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            packageManager.canRequestPackageInstalls()
+        } else {
+            true
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +114,9 @@ class AppUpdatesActivity : AppCompatActivity() {
         binding.swipeRefresh.setOnRefreshListener {
             viewModel.refresh()
         }
+        binding.btnCheckUpdates.setOnClickListener {
+            viewModel.refresh()
+        }
     }
 
     private fun observeViewModel() {
@@ -105,28 +133,28 @@ class AppUpdatesActivity : AppCompatActivity() {
             is AppUpdatesUiState.Loading -> {
                 binding.layoutLoading.visibility = View.VISIBLE
                 binding.layoutHeader.visibility = View.GONE
-                binding.swipeRefresh.visibility = View.GONE
+                binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.GONE
             }
             is AppUpdatesUiState.Success -> {
                 binding.layoutLoading.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.GONE
-                binding.swipeRefresh.visibility = View.VISIBLE
                 binding.layoutHeader.visibility = View.VISIBLE
+                binding.rvUpdates.visibility = View.VISIBLE
                 currentUpdates.clear()
                 currentUpdates.addAll(state.updates)
                 submitAndUpdateHeader()
             }
             is AppUpdatesUiState.Empty -> {
                 binding.layoutLoading.visibility = View.GONE
-                binding.swipeRefresh.visibility = View.GONE
                 binding.layoutHeader.visibility = View.GONE
+                binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
             }
             is AppUpdatesUiState.Error -> {
                 binding.layoutLoading.visibility = View.GONE
-                binding.swipeRefresh.visibility = View.GONE
                 binding.layoutHeader.visibility = View.GONE
+                binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
                 Toast.makeText(this, R.string.updates_check_failed, Toast.LENGTH_SHORT).show()
             }
@@ -154,6 +182,27 @@ class AppUpdatesActivity : AppCompatActivity() {
     }
 
     private fun startDownload(app: AppUpdate) {
+        if (!canInstall()) {
+            Toast.makeText(this, R.string.install_permission_prompt, Toast.LENGTH_LONG).show()
+            try {
+                unknownSourcesLauncher.launch(
+                    Intent(
+                        android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            } catch (e: Exception) {
+                try {
+                    unknownSourcesLauncher.launch(
+                        Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                    )
+                } catch (_: Exception) {}
+            }
+            isProcessing = false
+            updateQueue.addFirst(app)
+            return
+        }
+
         adapter.setItemState(app.packageName, AppUpdateAdapter.ItemState.Downloading(0))
         Toast.makeText(this, getString(R.string.updating_app, app.appName), Toast.LENGTH_SHORT).show()
 
@@ -196,8 +245,8 @@ class AppUpdatesActivity : AppCompatActivity() {
             // The system installer takes over from here; drop it from the pending list.
             currentUpdates.removeAll { it.packageName == app.packageName }
             if (currentUpdates.isEmpty()) {
-                binding.swipeRefresh.visibility = View.GONE
                 binding.layoutHeader.visibility = View.GONE
+                binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
             } else {
                 submitAndUpdateHeader()
