@@ -60,7 +60,7 @@
                 android:paddingVertical="3dp"
                 android:text="@string/recommended"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="@color/white"
+                android:textColor="?attr/colorOnPrimary"
                 android:textStyle="bold"
                 android:visibility="gone"
                 tools:visibility="visible" />

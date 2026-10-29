@@ -72,7 +72,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorPrimary"
+            android:textColor="@color/developer_name_color"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/iv_app_icon"
             app:layout_constraintTop_toBottomOf="@id/tv_app_name"

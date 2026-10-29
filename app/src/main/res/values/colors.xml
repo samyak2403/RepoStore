@@ -1,64 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Core Monochrome Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-
-    <!-- Tag colors -->
-    <color name="tag_new">#4CAF50</color>
-    <color name="tag_updated">#2196F3</color>
-    <color name="tag_archived">#9E9E9E</color>
-
-    <!-- Star color -->
-    <color name="star_yellow">#FFC107</color>
-
-    <!-- Primary colors - Play Store inspired -->
-    <color name="primary">#01875F</color>
-    <color name="primary_variant">#00695C</color>
-    <color name="secondary">#01875F</color>
-    <!-- Lighter green used as the primary accent in dark mode -->
-    <color name="primary_dark_theme">#81C784</color>
     <color name="transparent">#00000000</color>
 
-    <!-- Featured/trending card gradients and their circle tints are generated
-         per card across the full hue range by CardGradient, so they intentionally
-         have no colour resources here. -->
+    <!-- Primary Brand & Theme Accent Colors (Luxury Monochrome Black & White) -->
+    <color name="primary">#FF000000</color>
+    <color name="primary_variant">#FF18181B</color>
+    <color name="secondary">#FF27272A</color>
+    <color name="primary_dark_theme">#FFFFFFFF</color>
 
+    <!-- Material 3 Light Theme Color Roles (Premium Crisp White & Black Foundation) -->
+    <color name="md_theme_primary">#FF000000</color>
+    <color name="md_theme_onPrimary">#FFFFFFFF</color>
+    <color name="md_theme_primaryContainer">#FFF4F4F5</color>
+    <color name="md_theme_onPrimaryContainer">#FF09090B</color>
+    <color name="md_theme_secondary">#FF27272A</color>
+    <color name="md_theme_onSecondary">#FFFFFFFF</color>
+    <color name="md_theme_secondaryContainer">#FFE4E4E7</color>
+    <color name="md_theme_onSecondaryContainer">#FF18181B</color>
+    <color name="md_theme_tertiary">#FF3F3F46</color>
+    <color name="md_theme_onTertiary">#FFFFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#FFE4E4E7</color>
+    <color name="md_theme_onTertiaryContainer">#FF18181B</color>
+    <color name="md_theme_error">#FFBA1A1A</color>
+    <color name="md_theme_onError">#FFFFFFFF</color>
+    <color name="md_theme_errorContainer">#FFFFDAD6</color>
+    <color name="md_theme_onErrorContainer">#FF410002</color>
+    <color name="md_theme_background">#FFFFFFFF</color>
+    <color name="md_theme_onBackground">#FF09090B</color>
+    <color name="md_theme_surface">#FFFFFFFF</color>
+    <color name="md_theme_onSurface">#FF09090B</color>
+    <color name="md_theme_surfaceVariant">#FFF4F4F5</color>
+    <color name="md_theme_onSurfaceVariant">#FF52525B</color>
+    <color name="md_theme_outline">#FFD4D4D8</color>
+    <color name="md_theme_outlineVariant">#FFE4E4E7</color>
+    <color name="md_theme_surfaceContainerLow">#FFFAFAFA</color>
+    <color name="md_theme_surfaceContainer">#FFF4F4F5</color>
+    <color name="md_theme_surfaceContainerHigh">#FFE4E4E7</color>
 
-    <!-- Chip background -->
-    <color name="chip_background">#E8F5E9</color>
-    
-    <!-- Status colors -->
-    <color name="green_500">#4CAF50</color>
-    <color name="red_500">#F44336</color>
-    <color name="error">#B00020</color>
-    
-    <!-- Security badge colors (VirusTotal) -->
-    <color name="badge_safe_bg">#E8F5E9</color>
-    <color name="badge_safe_text">#1B7F3B</color>
-    <color name="badge_flagged_bg">#FFEBEE</color>
-    <color name="badge_flagged_text">#C62828</color>
-    <color name="badge_unknown_bg">#EEEEEE</color>
-    <color name="badge_unknown_text">#616161</color>
+    <!-- Chip Background -->
+    <color name="chip_background">#FFF4F4F5</color>
 
-    <!-- Favorite color -->
-    <color name="favorite_active">#E91E63</color>
-    <!-- Donate colors -->
-    <color name="buy_me_a_coffee">#FFDD00</color>
-    <!-- Theme colors -->
-    <color name="md_theme_primary">#006C4C</color>
-    <color name="md_theme_primaryContainer">#89F8C6</color>
-    <color name="md_theme_surface">#FBFDFA</color>
-    <!-- Category Icon Backgrounds (Soft Pastels) -->
-    <color name="cat_bg_blue">#E3F2FD</color>
-    <color name="cat_bg_green">#E8F5E9</color>
-    <color name="cat_bg_red">#FFEBEE</color>
-    <color name="cat_bg_orange">#FFF3E0</color>
-    <color name="cat_bg_purple">#F3E5F5</color>
-    <color name="cat_bg_teal">#E0F2F1</color>
-    <color name="cat_bg_indigo">#E8EAF6</color>
-    <color name="cat_bg_pink">#FCE4EC</color>
-    <color name="cat_bg_yellow">#FFFDE7</color>
-    <color name="cat_bg_brown">#EFEBE9</color>
-    <color name="cat_bg_cyan">#E0F7FA</color>
-    <color name="cat_bg_lime">#F9FBE7</color>
+    <!-- Install / Action Button Colors -->
+    <color name="install_button">#0b57cf</color>
+    <color name="install_button_text">#FFFFFFFF</color>
+
+    <!-- Developer Name / Link Color -->
+    <color name="developer_name_color">#0b57cf</color>
+
+    <!-- Star Color (Warm Amber Gold) -->
+    <color name="star_yellow">#FFF59E0B</color>
+
+    <!-- Tag Colors (Material 3 Refined Accents) -->
+    <color name="tag_new">#FF10B981</color>
+    <color name="tag_updated">#0b57cf</color>
+    <color name="tag_archived">#FF64748B</color>
+
+    <!-- Status Colors -->
+    <color name="green_500">#FF10B981</color>
+    <color name="red_500">#FFEF4444</color>
+    <color name="error">#FFBA1A1A</color>
+
+    <!-- Security Badge Colors (VirusTotal) -->
+    <color name="badge_safe_bg">#FFE6F7EF</color>
+    <color name="badge_safe_text">#FF047857</color>
+    <color name="badge_flagged_bg">#FFFEE2E2</color>
+    <color name="badge_flagged_text">#FFB91C1C</color>
+    <color name="badge_unknown_bg">#FFF1F5F9</color>
+    <color name="badge_unknown_text">#FF475569</color>
+
+    <!-- Interaction & Action Colors -->
+    <color name="favorite_active">#FFF43F5E</color>
+    <color name="buy_me_a_coffee">#FFFBBF24</color>
+
+    <!-- Category Icon Backgrounds (Sophisticated Soft Pastels) -->
+    <color name="cat_bg_blue">#FFE0F2FE</color>
+    <color name="cat_bg_green">#FFDCFCE7</color>
+    <color name="cat_bg_red">#FFFFE4E6</color>
+    <color name="cat_bg_orange">#FFFFEDD5</color>
+    <color name="cat_bg_purple">#FFF3E8FF</color>
+    <color name="cat_bg_teal">#FFCCFBF1</color>
+    <color name="cat_bg_indigo">#FFE0E7FF</color>
+    <color name="cat_bg_pink">#FFFCE7F3</color>
+    <color name="cat_bg_yellow">#FFFEF9C3</color>
+    <color name="cat_bg_brown">#FFF5EBE6</color>
+    <color name="cat_bg_cyan">#FFCFFAFE</color>
+    <color name="cat_bg_lime">#FFECFCCB</color>
 </resources>

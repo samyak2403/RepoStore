@@ -1,33 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Dark-mode variants for the colours that were previously light-only. Without
-  these, the category tiles, topic chips and security badges rendered as bright
-  pastel blocks on a dark background, and the light-green dark-mode accent had
-  almost no contrast against them.
+  Dark-mode variants for the colours:
+  Using Premium OLED Pitch Black foundation (#000000) with deep obsidian surfaces,
+  crisp white accents, and elegant high-contrast badges & category tiles.
 -->
 <resources>
-    <!-- Chip background for dark mode -->
-    <color name="chip_background">#1B3D2F</color>
+    <!-- Primary Brand & Theme Accent Colors (Dark Mode) -->
+    <color name="primary">#FFFFFFFF</color>
+    <color name="primary_variant">#FFE4E4E7</color>
+    <color name="secondary">#FFD4D4D8</color>
 
+    <!-- Material 3 Dark Theme Color Roles (Premium OLED Pitch Black Foundation) -->
+    <color name="md_theme_primary">#FFFFFFFF</color>
+    <color name="md_theme_onPrimary">#FF000000</color>
+    <color name="md_theme_primaryContainer">#FF27272A</color>
+    <color name="md_theme_onPrimaryContainer">#FFFFFFFF</color>
+    <color name="md_theme_secondary">#FFD4D4D8</color>
+    <color name="md_theme_onSecondary">#FF18181B</color>
+    <color name="md_theme_secondaryContainer">#FF27272A</color>
+    <color name="md_theme_onSecondaryContainer">#FFF4F4F5</color>
+    <color name="md_theme_tertiary">#FFA1A1AA</color>
+    <color name="md_theme_onTertiary">#FF18181B</color>
+    <color name="md_theme_tertiaryContainer">#FF27272A</color>
+    <color name="md_theme_onTertiaryContainer">#FFF4F4F5</color>
+    <color name="md_theme_error">#FFFFB4AB</color>
+    <color name="md_theme_onError">#FF690005</color>
+    <color name="md_theme_errorContainer">#FF93000A</color>
+    <color name="md_theme_onErrorContainer">#FFFFDAD6</color>
+    <color name="md_theme_background">#FF000000</color>
+    <color name="md_theme_onBackground">#FFF4F4F5</color>
+    <color name="md_theme_surface">#FF000000</color>
+    <color name="md_theme_onSurface">#FFF4F4F5</color>
+    <color name="md_theme_surfaceVariant">#FF18181B</color>
+    <color name="md_theme_onSurfaceVariant">#FFA1A1AA</color>
+    <color name="md_theme_outline">#FF3F3F46</color>
+    <color name="md_theme_outlineVariant">#FF27272A</color>
+    <color name="md_theme_surfaceContainerLow">#FF09090B</color>
+    <color name="md_theme_surfaceContainer">#FF121214</color>
+    <color name="md_theme_surfaceContainerHigh">#FF1C1C1F</color>
 
+    <!-- Chip Background for Dark Mode -->
+    <color name="chip_background">#FF18181B</color>
 
-    <!-- Security badge colors (VirusTotal). The light-mode values are dark
-         greens/reds that all but disappear against a dark surface. -->
-    <color name="badge_safe_text">#81C784</color>
-    <color name="badge_flagged_text">#EF9A9A</color>
-    <color name="badge_unknown_text">#BDBDBD</color>
+    <!-- Install / Action Button Colors -->
+    <color name="install_button">#7ca1fa</color>
+    <color name="install_button_text">#FFFFFFFF</color>
 
-    <!-- Category Icon Backgrounds (deep tints) -->
-    <color name="cat_bg_blue">#14293D</color>
-    <color name="cat_bg_green">#16301B</color>
-    <color name="cat_bg_red">#3A1B1F</color>
-    <color name="cat_bg_orange">#3A2A14</color>
-    <color name="cat_bg_purple">#2E1B33</color>
-    <color name="cat_bg_teal">#12302E</color>
-    <color name="cat_bg_indigo">#1C2038</color>
-    <color name="cat_bg_pink">#3A1B28</color>
-    <color name="cat_bg_yellow">#33301A</color>
-    <color name="cat_bg_brown">#2C2523</color>
-    <color name="cat_bg_cyan">#113035</color>
-    <color name="cat_bg_lime">#2A3016</color>
+    <!-- Developer Name / Link Color -->
+    <color name="developer_name_color">#7ca1fa</color>
+
+    <!-- Security Badge Colors (VirusTotal Dark) -->
+    <color name="badge_safe_bg">#FF0C2B1B</color>
+    <color name="badge_safe_text">#FF34D399</color>
+    <color name="badge_flagged_bg">#FF331417</color>
+    <color name="badge_flagged_text">#FFF87171</color>
+    <color name="badge_unknown_bg">#FF1E242B</color>
+    <color name="badge_unknown_text">#FF94A3B8</color>
+
+    <!-- Category Icon Backgrounds (Deep Luxury Jewel Tones) -->
+    <color name="cat_bg_blue">#FF0C243C</color>
+    <color name="cat_bg_green">#FF0C2B18</color>
+    <color name="cat_bg_red">#FF331417</color>
+    <color name="cat_bg_orange">#FF331F0A</color>
+    <color name="cat_bg_purple">#FF261433</color>
+    <color name="cat_bg_teal">#FF0A2926</color>
+    <color name="cat_bg_indigo">#FF141838</color>
+    <color name="cat_bg_pink">#FF331424</color>
+    <color name="cat_bg_yellow">#FF2E280A</color>
+    <color name="cat_bg_brown">#FF261C18</color>
+    <color name="cat_bg_cyan">#FF0A2830</color>
+    <color name="cat_bg_lime">#FF1F2E0A</color>
 </resources>

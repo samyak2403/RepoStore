@@ -83,7 +83,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?attr/colorPrimary"
+                        android:textColor="@color/developer_name_color"
                         tools:text="Developer" />
 
                     <com.google.android.material.chip.Chip
@@ -363,7 +363,7 @@
                         app:cardElevation="0dp"
                         app:strokeWidth="0dp"
                         app:shapeAppearanceOverlay="@style/ShapeAppearance.App.LeftSplitButton"
-                        app:cardBackgroundColor="?attr/colorPrimary">
+                        app:cardBackgroundColor="@color/install_button">
 
                         <LinearLayout
                             android:id="@+id/btn_download_main"
@@ -383,7 +383,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/install"
-                                android:textColor="?attr/colorOnPrimary"
+                                android:textColor="@color/install_button_text"
                                 android:textSize="16sp"
                                 android:textStyle="bold"
                                 android:maxLines="1"
@@ -393,7 +393,7 @@
                                 android:id="@+id/tv_download_subtitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:textColor="?attr/colorOnPrimary"
+                                android:textColor="@color/install_button_text"
                                 android:textSize="11sp"
                                 android:visibility="gone"
                                 android:maxLines="1"
@@ -417,7 +417,7 @@
                         app:cardElevation="0dp"
                         app:strokeWidth="0dp"
                         app:shapeAppearanceOverlay="@style/ShapeAppearance.App.RightSplitButton"
-                        app:cardBackgroundColor="?attr/colorPrimary"
+                        app:cardBackgroundColor="@color/install_button"
                         android:clickable="true"
                         android:focusable="true">
 
@@ -428,7 +428,7 @@
                             android:scaleType="centerInside"
                             android:background="?attr/selectableItemBackground"
                             android:contentDescription="@string/select_variant"
-                            app:tint="?attr/colorOnPrimary" />
+                            app:tint="@color/install_button_text" />
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
