@@ -81,10 +81,11 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
 
             repoResult.fold(
                 onSuccess = { repo ->
-                    // Show repo data immediately
-                    _uiState.value = DetailUiState.Success(repo, null)
+                    // Show repo data with cached release immediately if already available
+                    val initialRelease = repository.getCachedRelease(owner, repoName)
+                    _uiState.value = DetailUiState.Success(repo, initialRelease)
 
-                    // Load release in background
+                    // Load/refresh release in background
                     loadRelease(owner, repoName, repo, forceRefresh)
 
                     // Load screenshots in background
@@ -106,9 +107,19 @@ class DetailViewModel(private val repository: GitHubRepository) : ViewModel() {
     private fun loadRelease(owner: String, repoName: String, repo: GitHubRepo, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             val releaseResult = repository.getLatestRelease(owner, repoName, forceRefresh)
-            releaseResult.onSuccess { release ->
-                _uiState.value = DetailUiState.Success(repo, release)
-            }
+            releaseResult.fold(
+                onSuccess = { release ->
+                    _uiState.value = DetailUiState.Success(repo, release)
+                },
+                onFailure = {
+                    if ((_uiState.value as? DetailUiState.Success)?.release == null) {
+                        val cached = repository.getCachedRelease(owner, repoName)
+                        if (cached != null) {
+                            _uiState.value = DetailUiState.Success(repo, cached)
+                        }
+                    }
+                }
+            )
         }
     }
 

@@ -113,17 +113,47 @@ class GitHubRepository(
     private suspend fun repoHasApk(owner: String, repoName: String): Boolean {
         val cacheKey = "$owner/$repoName"
         
-        // Check cache first
+        // Check in-memory cache first
         apkReposCache[cacheKey]?.let { return it }
+
+        // Check releaseCache next
+        val cachedRelease = releaseCache[cacheKey]?.second
+        if (cachedRelease != null) {
+            val hasApk = hasInstallableAsset(cachedRelease)
+            apkReposCache[cacheKey] = hasApk
+            return hasApk
+        }
+
+        // Check Room database
+        val dbCached = cachedRepoDao?.getCachedRepoByFullName(cacheKey)?.toAppItem()?.latestRelease
+        if (dbCached != null) {
+            val hasApk = hasInstallableAsset(dbCached)
+            apkReposCache[cacheKey] = hasApk
+            releaseCache[cacheKey] = System.currentTimeMillis() to dbCached
+            return hasApk
+        }
         
         return try {
-            val release = api.getLatestRelease(owner, repoName)
-            val hasApk = hasInstallableAsset(release)
-            apkReposCache[cacheKey] = hasApk
-            if (hasApk) {
-                releaseCache[cacheKey] = System.currentTimeMillis() to release
+            val release = try {
+                api.getLatestRelease(owner, repoName)
+            } catch (e: HttpException) {
+                if (e.code() == 404) {
+                    api.getReleases(owner, repoName, perPage = 3).firstOrNull { !it.draft }
+                } else {
+                    null
+                }
             }
-            hasApk
+            if (release != null) {
+                val hasApk = hasInstallableAsset(release)
+                apkReposCache[cacheKey] = hasApk
+                if (hasApk) {
+                    releaseCache[cacheKey] = System.currentTimeMillis() to release
+                }
+                hasApk
+            } else {
+                apkReposCache[cacheKey] = false
+                false
+            }
         } catch (e: Exception) {
             apkReposCache[cacheKey] = false
             false
@@ -640,6 +670,12 @@ class GitHubRepository(
         }
     }
 
+    suspend fun getCachedRelease(owner: String, repoName: String): GitHubRelease? = withContext(Dispatchers.IO) {
+        val cacheKey = "$owner/$repoName"
+        releaseCache[cacheKey]?.second
+            ?: cachedRepoDao?.getCachedRepoByFullName(cacheKey)?.toAppItem()?.latestRelease
+    }
+
     suspend fun getLatestRelease(
         owner: String,
         repoName: String,
@@ -647,14 +683,16 @@ class GitHubRepository(
     ): Result<GitHubRelease> = withContext(Dispatchers.IO) {
         val cacheKey = "$owner/$repoName"
         try {
-
-            // When forceRefresh is requested (e.g. the App Updates screen checking for
-            // new versions) we skip the in-memory cache and always hit the network so
-            // freshly published releases show up immediately.
+            // When not forcing refresh, prioritize memory and local Room database
             if (!forceRefresh) {
                 val cached = releaseCache[cacheKey]
                 if (cached != null && (System.currentTimeMillis() - cached.first) < releaseCacheTtlMs) {
                     return@withContext Result.success(cached.second)
+                }
+                val dbCached = cachedRepoDao?.getCachedRepoByFullName(cacheKey)?.toAppItem()?.latestRelease
+                if (dbCached != null) {
+                    releaseCache[cacheKey] = System.currentTimeMillis() to dbCached
+                    return@withContext Result.success(dbCached)
                 }
                 // Remembered as having no release -- avoid re-hitting the network within TTL.
                 val noReleaseTime = noReleaseRepos[cacheKey]
@@ -664,17 +702,56 @@ class GitHubRepository(
             }
 
             val cacheControl = if (forceRefresh) "no-cache" else null
-            val release = api.getLatestRelease(owner, repoName, cacheControl = cacheControl)
+            val release = try {
+                api.getLatestRelease(owner, repoName, cacheControl = cacheControl)
+            } catch (e: HttpException) {
+                if (e.code() == 404) {
+                    // Fall back to getReleases: handles repos with only pre-releases
+                    val releases = api.getReleases(owner, repoName, cacheControl = cacheControl, perPage = 5)
+                    releases.firstOrNull { !it.draft } ?: throw e
+                } else {
+                    throw e
+                }
+            }
+
             releaseCache[cacheKey] = System.currentTimeMillis() to release
             noReleaseRepos.remove(cacheKey)
-            Result.success(release)
-        } catch (e: HttpException) {
-            if (e.code() == 404) {
-                noReleaseRepos[cacheKey] = System.currentTimeMillis()
+
+            // Update cachedRepoDao if present so Room stays synchronized
+            cachedRepoDao?.getCachedRepoByFullName(cacheKey)?.let { existing ->
+                val apkAssets = release.assets.filter { it.name.lowercase().endsWith(".apk") }
+                val updated = existing.copy(
+                    latestReleaseTag = release.tagName,
+                    latestReleaseName = release.name,
+                    latestReleaseBody = release.body,
+                    latestReleasePublishedAt = release.publishedAt,
+                    apkAssetSummaryJson = com.google.gson.Gson().toJson(apkAssets)
+                )
+                cachedRepoDao.upsertRepo(updated)
             }
-            handleHttpException(e)
+
+            Result.success(release)
         } catch (e: Exception) {
-            Result.failure(e)
+            // If network request failed (e.g. 403 rate limit, offline, timeout),
+            // gracefully fall back to cached release from memory or Room so we never wipe a valid release
+            val memCached = releaseCache[cacheKey]?.second
+            if (memCached != null) {
+                return@withContext Result.success(memCached)
+            }
+            val dbCached = cachedRepoDao?.getCachedRepoByFullName(cacheKey)?.toAppItem()?.latestRelease
+            if (dbCached != null) {
+                releaseCache[cacheKey] = System.currentTimeMillis() to dbCached
+                return@withContext Result.success(dbCached)
+            }
+
+            if (e is HttpException) {
+                if (e.code() == 404) {
+                    noReleaseRepos[cacheKey] = System.currentTimeMillis()
+                }
+                handleHttpException(e)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 

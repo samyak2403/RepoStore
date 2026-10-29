@@ -170,7 +170,7 @@ class DetailActivity : AppCompatActivity() {
         setupExpandableSections()
         setupSimilarAppsShelf()
         observeViewModel()
-        viewModel.loadAppDetails(owner, repoName, forceRefresh = true)
+        viewModel.loadAppDetails(owner, repoName, forceRefresh = false)
     }
 
     override fun onResume() {
@@ -575,10 +575,7 @@ class DetailActivity : AppCompatActivity() {
                 btnDownloadMain.setOnClickListener {
                     openUrl(repo.htmlUrl)
                 }
-                updateSplitButtonShape(true)
-                btnDownloadDropdown.setOnClickListener {
-                    showReleaseVariantPicker()
-                }
+                updateSplitButtonShape(false)
             }
 
             // GitHub button
