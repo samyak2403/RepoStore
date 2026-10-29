@@ -1,0 +1,6 @@
+- Fixed APK download error ("Failed to get file info") with automatic streaming fallback
+- Added automatic fallback to direct download if mirror proxy is unavailable
+- Scoped storage improvements for modern Android versions (Android 10 - 16)
+- Enhanced Material 3 theme selector with instant dynamic color updates
+- Improved searchable language dialog with dynamic surface styling
+- Complete and accurate open-source license documentation

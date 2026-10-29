@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.22] - 2026-10-29
+### Added
+- **Multi-Part Downloader Fallbacks**: Added automatic cascading fallback from HEAD/Range inspection to single-part GET streaming when servers or proxies do not support pre-flight probes.
+- **Mirror Proxy Resilience**: Added automatic fallback to direct GitHub URLs when a configured mirror proxy is unreachable or times out.
+- **Modern Storage Compatibility**: Migrated downloaded APK storage to app-specific directories, fully supporting scoped storage across Android 10 to Android 16.
+- **DownloadManager Fallback**: Integrated system `DownloadManager` safety net in `AppInstaller` if parallel downloader fails.
+
+### Fixed
+- Fixed fatal "Failed to get file info" abort error when clicking the Install button.
+- Added missing `User-Agent` and `Accept` headers to OkHttp downloader client to avoid HTTP 403 Forbidden responses.
+- Fixed multi-part progress throttling logic.
+- Refined Material 3 settings theme cards and searchable language dialog color styling.
+
+---
+
 ## [1.0.21] - 2026-10-22
 ### Added
 - **Play Store UI/UX Redesign**: Reworked app details layout with Google Play Store styling, structured metadata sections, and similar apps recommendation shelf.
@@ -94,4 +109,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed search queries dropping Android platform filters and pagination offsets.
 - Added preliminary VirusTotal security verification infrastructure.
-
