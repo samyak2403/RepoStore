@@ -101,37 +101,45 @@ object VersionComparator {
     
     /**
      * Compare two non-empty pre-release strings. Splits on common separators and
-     * compares segment by segment: numeric segments compare numerically, others
-     * lexically. Returns >0 if [a] is newer, <0 if older, 0 if equal.
+     * compares segment by segment (see [compareSegment]). A pre-release with fewer
+     * segments is older. Returns >0 if [a] is newer, <0 if older, 0 if equal.
      */
     private fun comparePreRelease(a: String, b: String): Int {
-        val aParts = splitPreRelease(a)
-        val bParts = splitPreRelease(b)
+        val aParts = a.split('.', '-', '_').filter { it.isNotEmpty() }
+        val bParts = b.split('.', '-', '_').filter { it.isNotEmpty() }
         val max = maxOf(aParts.size, bParts.size)
         for (i in 0 until max) {
             val ap = aParts.getOrNull(i) ?: return -1 // shorter pre-release is older
             val bp = bParts.getOrNull(i) ?: return 1
-            val an = ap.toLongOrNull()
-            val bn = bp.toLongOrNull()
+            val cmp = compareSegment(ap, bp)
+            if (cmp != 0) return cmp
+        }
+        return 0
+    }
+
+    /**
+     * Compare a single separator-delimited segment. The segment is split into
+     * alternating letter and digit runs so that "rc10" ([rc, 10]) compares
+     * numerically against "rc2" ([rc, 2]) instead of lexically. Segment boundaries
+     * are preserved by the caller, so "rc.1" and "rc1" remain distinct.
+     */
+    private fun compareSegment(a: String, b: String): Int {
+        val aTokens = PRE_RELEASE_TOKEN_REGEX.findAll(a).map { it.value }.toList()
+        val bTokens = PRE_RELEASE_TOKEN_REGEX.findAll(b).map { it.value }.toList()
+        val max = maxOf(aTokens.size, bTokens.size)
+        for (i in 0 until max) {
+            val at = aTokens.getOrNull(i) ?: return -1
+            val bt = bTokens.getOrNull(i) ?: return 1
+            val an = at.toLongOrNull()
+            val bn = bt.toLongOrNull()
             val cmp = when {
                 an != null && bn != null -> an.compareTo(bn)
-                else -> ap.compareTo(bp)
+                else -> at.compareTo(bt)
             }
             if (cmp != 0) return cmp
         }
         return 0
     }
-    
-    /**
-     * Split a pre-release string into comparable tokens. Separators ('.', '-', '_')
-     * split segments, and each segment is further split into alternating letter and
-     * digit runs so that "rc10" becomes ["rc", "10"] and compares numerically
-     * against "rc2" (otherwise "rc10" < "rc2" lexically).
-     */
-    private fun splitPreRelease(value: String): List<String> =
-        value.split('.', '-', '_')
-            .filter { it.isNotEmpty() }
-            .flatMap { segment -> PRE_RELEASE_TOKEN_REGEX.findAll(segment).map { it.value } }
 
     /**
      * Normalize a version string by extracting the core numeric version (e.g. "1.2.3").
