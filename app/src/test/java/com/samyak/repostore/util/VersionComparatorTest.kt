@@ -91,4 +91,11 @@ class VersionComparatorTest {
         assertFalse(VersionComparator.isNewerVersion("1.2.0-rc1", "1.2.0-rc.1"))
         assertTrue(VersionComparator.isNewerVersion("1.2.0-beta.2", "1.2.0-beta.10"))
     }
+
+    @Test
+    fun preReleaseNumbersBeyondLongRangeCompareNumerically() {
+        assertTrue(VersionComparator.isNewerVersion("1.2.0-rc9", "1.2.0-rc10000000000000000000"))
+        assertFalse(VersionComparator.isNewerVersion("1.2.0-rc10000000000000000000", "1.2.0-rc9"))
+        assertFalse(VersionComparator.isNewerVersion("1.2.0-rc007", "1.2.0-rc7"))
+    }
 }

@@ -130,15 +130,25 @@ object VersionComparator {
         for (i in 0 until max) {
             val at = aTokens.getOrNull(i) ?: return -1
             val bt = bTokens.getOrNull(i) ?: return 1
-            val an = at.toLongOrNull()
-            val bn = bt.toLongOrNull()
-            val cmp = when {
-                an != null && bn != null -> an.compareTo(bn)
-                else -> at.compareTo(bt)
+            val cmp = if (at[0].isDigit() && bt[0].isDigit()) {
+                compareDigitRuns(at, bt)
+            } else {
+                at.compareTo(bt)
             }
             if (cmp != 0) return cmp
         }
         return 0
+    }
+
+    /**
+     * Compare two all-digit strings numerically without any size limit
+     * (no Long overflow): ignore leading zeros, then the longer number is larger,
+     * and equal-length numbers compare lexically.
+     */
+    private fun compareDigitRuns(a: String, b: String): Int {
+        val an = a.trimStart('0')
+        val bn = b.trimStart('0')
+        return if (an.length != bn.length) an.length.compareTo(bn.length) else an.compareTo(bn)
     }
 
     /**
