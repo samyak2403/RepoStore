@@ -25,6 +25,7 @@ object VersionComparator {
 
     private val SEMVER_REGEX = Regex("""(\d+(?:\.\d+)+)""")
     private val SINGLE_INT_REGEX = Regex("""\d+""")
+    private val PRE_RELEASE_TOKEN_REGEX = Regex("""\d+|\D+""")
 
     /**
      * Check if the latest version is newer than the current installed version.
@@ -104,8 +105,8 @@ object VersionComparator {
      * lexically. Returns >0 if [a] is newer, <0 if older, 0 if equal.
      */
     private fun comparePreRelease(a: String, b: String): Int {
-        val aParts = a.split('.', '-', '_').filter { it.isNotEmpty() }
-        val bParts = b.split('.', '-', '_').filter { it.isNotEmpty() }
+        val aParts = splitPreRelease(a)
+        val bParts = splitPreRelease(b)
         val max = maxOf(aParts.size, bParts.size)
         for (i in 0 until max) {
             val ap = aParts.getOrNull(i) ?: return -1 // shorter pre-release is older
@@ -121,6 +122,17 @@ object VersionComparator {
         return 0
     }
     
+    /**
+     * Split a pre-release string into comparable tokens. Separators ('.', '-', '_')
+     * split segments, and each segment is further split into alternating letter and
+     * digit runs so that "rc10" becomes ["rc", "10"] and compares numerically
+     * against "rc2" (otherwise "rc10" < "rc2" lexically).
+     */
+    private fun splitPreRelease(value: String): List<String> =
+        value.split('.', '-', '_')
+            .filter { it.isNotEmpty() }
+            .flatMap { segment -> PRE_RELEASE_TOKEN_REGEX.findAll(segment).map { it.value } }
+
     /**
      * Normalize a version string by extracting the core numeric version (e.g. "1.2.3").
      * Handles prefixes ("v", "release-", "termux-v"), build metadata ("+build4"),

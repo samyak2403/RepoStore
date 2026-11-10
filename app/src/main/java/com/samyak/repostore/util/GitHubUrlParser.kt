@@ -5,7 +5,7 @@ package com.samyak.repostore.util
  */
 object GitHubUrlParser {
     private val GITHUB_URL_PATTERN = Regex(
-        """^(?:https?://)?(?:www\.)?github\.com/([\w.-]+)/([\w.-]+)(?:/.*)?$""",
+        """^(?:https?://)?(?:www\.)?github\.com/([\w.-]+)/([\w.-]+)(?:[/?#].*)?$""",
         RegexOption.IGNORE_CASE
     )
 
