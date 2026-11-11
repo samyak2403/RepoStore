@@ -69,6 +69,7 @@ class FeaturedAppAdapter(
             binding.gradientBg.visibility = View.VISIBLE
             binding.decorCircles.applyCircleTint(palette.circleTint)
             binding.decorCircles.visibility = View.VISIBLE
+            binding.overlay.alpha = CardGradient.GRADIENT_OVERLAY_ALPHA
             binding.ivBanner.visibility = View.GONE
 
             // Try to load banner from screenshots folder
@@ -165,6 +166,7 @@ class FeaturedAppAdapter(
                         binding.ivBanner.visibility = View.VISIBLE
                         binding.gradientBg.visibility = View.GONE
                         binding.decorCircles.visibility = View.GONE
+                        binding.overlay.alpha = 1f
                         return false
                     }
                 })
