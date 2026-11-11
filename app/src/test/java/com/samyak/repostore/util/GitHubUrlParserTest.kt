@@ -65,4 +65,20 @@ class GitHubUrlParserTest {
         val info = GitHubUrlParser.parse(url)
         assertNull(info)
     }
+
+    @Test
+    fun parse_validUrlWithQueryString() {
+        val info = GitHubUrlParser.parse("https://github.com/samyak2403/RepoStore?tab=readme-ov-file")
+        assertNotNull(info)
+        assertEquals("samyak2403", info?.owner)
+        assertEquals("RepoStore", info?.name)
+    }
+
+    @Test
+    fun parse_validUrlWithFragment() {
+        val info = GitHubUrlParser.parse("https://github.com/samyak2403/RepoStore#readme")
+        assertNotNull(info)
+        assertEquals("samyak2403", info?.owner)
+        assertEquals("RepoStore", info?.name)
+    }
 }

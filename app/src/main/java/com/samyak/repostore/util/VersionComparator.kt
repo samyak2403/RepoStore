@@ -25,6 +25,7 @@ object VersionComparator {
 
     private val SEMVER_REGEX = Regex("""(\d+(?:\.\d+)+)""")
     private val SINGLE_INT_REGEX = Regex("""\d+""")
+    private val PRE_RELEASE_TOKEN_REGEX = Regex("""\d+|\D+""")
 
     /**
      * Check if the latest version is newer than the current installed version.
@@ -100,8 +101,8 @@ object VersionComparator {
     
     /**
      * Compare two non-empty pre-release strings. Splits on common separators and
-     * compares segment by segment: numeric segments compare numerically, others
-     * lexically. Returns >0 if [a] is newer, <0 if older, 0 if equal.
+     * compares segment by segment (see [compareSegment]). A pre-release with fewer
+     * segments is older. Returns >0 if [a] is newer, <0 if older, 0 if equal.
      */
     private fun comparePreRelease(a: String, b: String): Int {
         val aParts = a.split('.', '-', '_').filter { it.isNotEmpty() }
@@ -110,17 +111,46 @@ object VersionComparator {
         for (i in 0 until max) {
             val ap = aParts.getOrNull(i) ?: return -1 // shorter pre-release is older
             val bp = bParts.getOrNull(i) ?: return 1
-            val an = ap.toLongOrNull()
-            val bn = bp.toLongOrNull()
-            val cmp = when {
-                an != null && bn != null -> an.compareTo(bn)
-                else -> ap.compareTo(bp)
+            val cmp = compareSegment(ap, bp)
+            if (cmp != 0) return cmp
+        }
+        return 0
+    }
+
+    /**
+     * Compare a single separator-delimited segment. The segment is split into
+     * alternating letter and digit runs so that "rc10" ([rc, 10]) compares
+     * numerically against "rc2" ([rc, 2]) instead of lexically. Segment boundaries
+     * are preserved by the caller, so "rc.1" and "rc1" remain distinct.
+     */
+    private fun compareSegment(a: String, b: String): Int {
+        val aTokens = PRE_RELEASE_TOKEN_REGEX.findAll(a).map { it.value }.toList()
+        val bTokens = PRE_RELEASE_TOKEN_REGEX.findAll(b).map { it.value }.toList()
+        val max = maxOf(aTokens.size, bTokens.size)
+        for (i in 0 until max) {
+            val at = aTokens.getOrNull(i) ?: return -1
+            val bt = bTokens.getOrNull(i) ?: return 1
+            val cmp = if (at[0].isDigit() && bt[0].isDigit()) {
+                compareDigitRuns(at, bt)
+            } else {
+                at.compareTo(bt)
             }
             if (cmp != 0) return cmp
         }
         return 0
     }
-    
+
+    /**
+     * Compare two all-digit strings numerically without any size limit
+     * (no Long overflow): ignore leading zeros, then the longer number is larger,
+     * and equal-length numbers compare lexically.
+     */
+    private fun compareDigitRuns(a: String, b: String): Int {
+        val an = a.trimStart('0')
+        val bn = b.trimStart('0')
+        return if (an.length != bn.length) an.length.compareTo(bn.length) else an.compareTo(bn)
+    }
+
     /**
      * Normalize a version string by extracting the core numeric version (e.g. "1.2.3").
      * Handles prefixes ("v", "release-", "termux-v"), build metadata ("+build4"),
