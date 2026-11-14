@@ -12,7 +12,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.repostore.kxmpzq"
+    applicationId = "com.samyak.repostore"
     minSdk = 26
     targetSdk = 36
     versionCode = 23
