@@ -16,6 +16,7 @@ import com.samyak.repostore.RepoStoreApp
 import com.samyak.repostore.data.model.GitHubUser
 import com.samyak.repostore.databinding.ActivityAppDeveloperBinding
 import com.samyak.repostore.util.RateLimitDialog
+import com.samyak.repostore.util.openExternalUrl
 import kotlinx.coroutines.launch
 
 class AppDeveloperActivity : AppCompatActivity() {
@@ -112,13 +113,12 @@ class AppDeveloperActivity : AppCompatActivity() {
             binding.layoutBlog.visibility = View.VISIBLE
             binding.tvBlog.text = user.blog
             binding.layoutBlog.setOnClickListener {
-                val url = if (user.blog.startsWith("http")) user.blog else "https://${user.blog}"
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                openExternalUrl(user.blog)
             }
         }
 
         binding.btnViewGithub.setOnClickListener {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(user.htmlUrl)))
+            openExternalUrl(user.htmlUrl)
         }
     }
 
@@ -144,7 +144,7 @@ class AppDeveloperActivity : AppCompatActivity() {
                 .into(imageView)
                 
             avatarView.setOnClickListener {
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(contributor.htmlUrl)))
+                openExternalUrl(contributor.htmlUrl)
             }
             
             binding.containerContributors.addView(avatarView)
@@ -223,7 +223,7 @@ class AppDeveloperActivity : AppCompatActivity() {
                     android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
                 )
                 setOnClickListener {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(contributor.htmlUrl)))
+                    openExternalUrl(contributor.htmlUrl)
                 }
             }
 

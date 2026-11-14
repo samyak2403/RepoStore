@@ -23,19 +23,19 @@ interface InstalledAppMappingDao {
      * Get the stored package name for a specific owner/repo.
      * Returns null if no mapping exists (app was never installed through RepoStore).
      */
-    @Query("SELECT packageName FROM installed_app_mappings WHERE ownerName = :owner AND repoName = :repo LIMIT 1")
+    @Query("SELECT packageName FROM installed_app_mappings WHERE ownerName = :owner COLLATE NOCASE AND repoName = :repo COLLATE NOCASE LIMIT 1")
     suspend fun getPackageName(owner: String, repo: String): String?
 
     /**
      * Synchronous version for use on background threads.
      */
-    @Query("SELECT packageName FROM installed_app_mappings WHERE ownerName = :owner AND repoName = :repo LIMIT 1")
+    @Query("SELECT packageName FROM installed_app_mappings WHERE ownerName = :owner COLLATE NOCASE AND repoName = :repo COLLATE NOCASE LIMIT 1")
     fun getPackageNameSync(owner: String, repo: String): String?
 
     /**
      * Delete mapping when user uninstalls an app.
      */
-    @Query("DELETE FROM installed_app_mappings WHERE ownerName = :owner AND repoName = :repo")
+    @Query("DELETE FROM installed_app_mappings WHERE ownerName = :owner COLLATE NOCASE AND repoName = :repo COLLATE NOCASE")
     suspend fun deleteMapping(owner: String, repo: String)
 
     /**

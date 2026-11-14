@@ -46,6 +46,7 @@ class SearchFragment : Fragment() {
     
     // Shimmer layout for skeleton loading
     private var shimmerLayout: ShimmerFrameLayout? = null
+    private var isUpdatingChipStates = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -164,15 +165,23 @@ class SearchFragment : Fragment() {
             showUpdatedDialog()
         }
 
+        // Android only chip
+        binding.chipAndroidOnly.setOnCheckedChangeListener { _, isChecked ->
+            if (!isUpdatingChipStates) {
+                viewModel.toggleAndroidOnly(isChecked)
+            }
+        }
+
         // Has APK chip
         binding.chipHasApk.setOnCheckedChangeListener { _, isChecked ->
-            viewModel.toggleHasReleases(isChecked)
+            if (!isUpdatingChipStates) {
+                viewModel.toggleHasReleases(isChecked)
+            }
         }
 
         // Reset chip
         binding.chipReset.setOnClickListener {
             viewModel.resetFilters()
-            binding.chipHasApk.isChecked = true
             updateChipStates(SearchFilters.DEFAULT)
         }
     }
@@ -279,7 +288,13 @@ class SearchFragment : Fragment() {
             getString(R.string.updated)
         }
 
-        binding.chipHasApk.isChecked = filters.hasReleases || filters.hasApk
+        isUpdatingChipStates = true
+        try {
+            binding.chipAndroidOnly.isChecked = filters.androidOnly
+            binding.chipHasApk.isChecked = filters.hasReleases || filters.hasApk
+        } finally {
+            isUpdatingChipStates = false
+        }
 
         binding.chipReset.isVisible = viewModel.hasActiveFilters()
     }

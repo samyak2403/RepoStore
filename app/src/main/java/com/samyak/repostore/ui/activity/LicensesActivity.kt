@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.samyak.repostore.databinding.ActivityLicensesBinding
 import com.samyak.repostore.ui.adapter.LicenseAdapter
 import com.samyak.repostore.ui.adapter.LibraryInfo
+import com.samyak.repostore.util.openExternalUrl
 
 class LicensesActivity : AppCompatActivity() {
 
@@ -50,12 +51,7 @@ class LicensesActivity : AppCompatActivity() {
     }
 
     private fun openUrl(url: String) {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            startActivity(intent)
-        } catch (e: Exception) {
-            // Handle error silently
-        }
+        openExternalUrl(url)
     }
 
     companion object {

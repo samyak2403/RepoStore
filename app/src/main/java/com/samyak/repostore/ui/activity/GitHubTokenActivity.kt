@@ -11,8 +11,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.samyak.repostore.R
 import com.samyak.repostore.RepoStoreApp
+import com.samyak.repostore.data.api.RetrofitClient
+import com.samyak.repostore.data.auth.GitHubAuth
 import com.samyak.repostore.databinding.ActivityGithubTokenBinding
-import androidx.core.net.toUri
+import com.samyak.repostore.util.openExternalUrl
 
 class GitHubTokenActivity : AppCompatActivity() {
 
@@ -46,29 +48,64 @@ class GitHubTokenActivity : AppCompatActivity() {
         binding.btnSaveToken.setOnClickListener {
             val token = binding.etToken.text?.toString()?.trim()
             if (token.isNullOrEmpty()) {
-                (application as RepoStoreApp).setGitHubToken(null)
+                clearStoredToken()
                 Toast.makeText(this, R.string.token_removed, Toast.LENGTH_SHORT).show()
-            } else {
-                (application as RepoStoreApp).setGitHubToken(token)
-                Toast.makeText(this, R.string.token_saved, Toast.LENGTH_SHORT).show()
+                setResult(RESULT_OK)
+                finish()
+                return@setOnClickListener
             }
-            finish()
+
+            if (token.any { it.isWhitespace() } || token.contains("****")) {
+                binding.etToken.error = getString(R.string.invalid_token_format)
+                Toast.makeText(this, R.string.invalid_token_format, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            val saved = GitHubAuth.saveToken(this, token)
+            if (saved) {
+                refreshAuth()
+                Toast.makeText(this, R.string.token_saved, Toast.LENGTH_SHORT).show()
+                setResult(RESULT_OK)
+                finish()
+            } else {
+                Toast.makeText(this, R.string.token_save_failed, Toast.LENGTH_SHORT).show()
+            }
         }
 
         binding.btnClearToken.setOnClickListener {
             binding.etToken.text?.clear()
-            (application as RepoStoreApp).setGitHubToken(null)
+            binding.etToken.error = null
+            clearStoredToken()
             Toast.makeText(this, R.string.token_removed, Toast.LENGTH_SHORT).show()
+            setResult(RESULT_OK)
         }
 
         binding.btnCreateToken.setOnClickListener {
-            val intent = Intent(Intent.ACTION_VIEW, "https://github.com/settings/tokens/new".toUri())
-            startActivity(intent)
+            openExternalUrl("https://github.com/settings/tokens/new")
+        }
+    }
+
+    private fun clearStoredToken() {
+        val app = application as? RepoStoreApp
+        if (app != null) {
+            app.setGitHubToken(null)
+        } else {
+            GitHubAuth.signOut(this)
+            RetrofitClient.refreshAuth()
+        }
+    }
+
+    private fun refreshAuth() {
+        val app = application as? RepoStoreApp
+        if (app != null) {
+            app.refreshAuth()
+        } else {
+            RetrofitClient.refreshAuth()
         }
     }
 
     private fun loadCurrentToken() {
-        val token = (application as RepoStoreApp).getStoredToken()
+        val token = GitHubAuth.getToken(this)
         token?.let {
             if (it.length > 8) {
                 binding.etToken.setText("${it.take(4)}****${it.takeLast(4)}")

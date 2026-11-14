@@ -95,33 +95,34 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
         currentPage++
         
         viewModelScope.launch {
-            // Verify query hasn't changed during async operation
-            if (_searchQuery.value != currentQuery) {
-                isLoadingMore = false
-                currentPage-- // Revert page increment
-                return@launch
-            }
-            
-            val result = repository.advancedSearchApps(currentQuery, currentFilters, currentPage)
-            
-            result.fold(
-                onSuccess = { searchResult ->
-                    // Double-check query hasn't changed before updating UI
-                    if (_searchQuery.value == currentQuery) {
-                        hasNextPage = searchResult.hasNextPage
-                        _totalResults.value = searchResult.totalCount
-                        
-                        val currentState = _uiState.value
-                        if (currentState is SearchUiState.Success) {
-                            val combined = currentState.apps + searchResult.items
-                            _uiState.value = SearchUiState.Success(combined.distinctBy { it.repo.id })
+            try {
+                // Verify query hasn't changed during async operation
+                if (_searchQuery.value != currentQuery) {
+                    currentPage-- // Revert page increment
+                    return@launch
+                }
+
+                val result = repository.advancedSearchApps(currentQuery, currentFilters, currentPage)
+
+                result.fold(
+                    onSuccess = { searchResult ->
+                        // Double-check query hasn't changed before updating UI
+                        if (_searchQuery.value == currentQuery) {
+                            hasNextPage = searchResult.hasNextPage
+                            _totalResults.value = searchResult.totalCount
+
+                            val currentState = _uiState.value
+                            if (currentState is SearchUiState.Success) {
+                                val combined = currentState.apps + searchResult.items
+                                _uiState.value = SearchUiState.Success(combined.distinctBy { it.repo.id })
+                            }
                         }
-                    }
-                },
-                onFailure = { /* Silently fail on load more */ }
-            )
-            
-            isLoadingMore = false
+                    },
+                    onFailure = { /* Silently fail on load more */ }
+                )
+            } finally {
+                isLoadingMore = false
+            }
         }
     }
 
@@ -143,8 +144,8 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
                 _uiState.value = SearchUiState.Success(appItems)
             }
 
-            // Check if query is a GitHub URL
-            if (GitHubUrlParser.isGitHubUrl(query)) {
+            // Check if query is a GitHub URL or owner/repo shorthand
+            if (GitHubUrlParser.isRepoReference(query)) {
                 val urlResult = repository.getAppByUrl(query)
                 urlResult.fold(
                     onSuccess = { appItem ->
@@ -166,7 +167,7 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
                     _totalResults.value = searchResult.totalCount
                     
                     _uiState.value = if (searchResult.items.isEmpty()) {
-                        if (cachedResults.isNotEmpty()) {
+                        if (filters == SearchFilters.DEFAULT && cachedResults.isNotEmpty()) {
                             val appItems = cachedResults.map { repo ->
                                 AppItem(repo, null, null)
                             }
@@ -227,6 +228,11 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
         searchWithFilters(newFilters)
     }
 
+    fun toggleAndroidOnly(androidOnly: Boolean) {
+        val newFilters = _filters.value.copy(androidOnly = androidOnly)
+        searchWithFilters(newFilters)
+    }
+
     fun toggleShowFilters() {
         _showFilters.value = !_showFilters.value
     }
@@ -257,6 +263,7 @@ class SearchViewModel(private val repository: GitHubRepository) : ViewModel() {
                current.language != default.language ||
                current.minStars != default.minStars ||
                current.updatedWithin != default.updatedWithin ||
+               current.androidOnly != default.androidOnly ||
                (current.hasReleases != default.hasReleases || current.hasApk != default.hasApk)
     }
 }

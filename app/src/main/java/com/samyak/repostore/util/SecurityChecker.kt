@@ -1,9 +1,11 @@
 package com.samyak.repostore.util
 
 import android.util.Log
+import com.samyak.repostore.data.api.VirusTotalApi
 import com.samyak.repostore.data.api.VirusTotalClient
 import com.samyak.repostore.data.api.VirusTotalKeyManager
 import com.samyak.repostore.data.model.ReleaseAsset
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
@@ -36,37 +38,28 @@ sealed class SecurityStatus {
 }
 
 /**
- * Verifies APK security using the VirusTotal API by looking up the asset's SHA-256 hash.
- *
- * The lookup is hash-based, so the APK is never downloaded or uploaded here — we only
- * query VirusTotal's existing report for the file's checksum published by GitHub.
+ * Constructor-injectable security verifier using the VirusTotal API by looking up the
+ * asset's SHA-256 hash without uploading or downloading the binary.
  */
-object SecurityChecker {
-
-    private const val TAG = "SecurityChecker"
-
-    /**
-     * Look up the VirusTotal report for [asset].
-     *
-     * @return a [SecurityStatus] describing the verification result. Never throws.
-     */
-    suspend fun check(asset: ReleaseAsset?): SecurityStatus = withContext(Dispatchers.IO) {
+class ApkSecurityChecker(
+    private val virusTotalApiProvider: () -> VirusTotalApi = { VirusTotalClient.api },
+    private val isConfiguredProvider: () -> Boolean = { VirusTotalClient.isConfigured },
+    private val ensureKeysLoaded: suspend () -> Unit = { VirusTotalKeyManager.ensureLoaded() },
+    private val rotateKey: () -> Boolean = { VirusTotalKeyManager.rotate() },
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) {
+    suspend fun check(asset: ReleaseAsset?): SecurityStatus = withContext(ioDispatcher) {
         if (asset == null) return@withContext SecurityStatus.Unknown
 
         val hash = asset.sha256
 
-        // 1. Best assurance: a real antivirus scan via VirusTotal. Only possible when a
-        //    key is available and GitHub published a checksum for the asset.
         if (!hash.isNullOrBlank()) {
-            // Load the rotating pool of keys from the remote config (no-op if already loaded).
-            VirusTotalKeyManager.ensureLoaded()
+            ensureKeysLoaded()
 
-            if (VirusTotalClient.isConfigured) {
-                // Retry across the key pool: if one key is quota-limited (429) or rejected
-                // (401), rotate to the next enabled key and try again.
+            if (isConfiguredProvider()) {
                 while (true) {
                     try {
-                        val response = VirusTotalClient.api.getFileReport(hash)
+                        val response = virusTotalApiProvider().getFileReport(hash)
                         val stats = response.data?.attributes?.lastAnalysisStats
                         if (stats != null) {
                             val malicious = stats.malicious
@@ -77,14 +70,12 @@ object SecurityChecker {
                                 SecurityStatus.Safe(stats.totalEngines)
                             }
                         }
-                        // stats == null -> fall through to integrity/source signals below.
                         break
                     } catch (e: HttpException) {
-                        // 404 = file never submitted to VirusTotal; 401 = bad key; 429 = quota.
                         Log.d(TAG, "VirusTotal lookup failed (${e.code()}) for $hash")
                         val recoverable = e.code() == 429 || e.code() == 401
-                        if (recoverable && VirusTotalKeyManager.rotate()) {
-                            continue // try again with the next key
+                        if (recoverable && rotateKey()) {
+                            continue
                         }
                         break
                     } catch (e: Exception) {
@@ -95,14 +86,23 @@ object SecurityChecker {
             }
         }
 
-        // 2. No malware scan available. Fall back to trust signals that work for every
-        //    user without any API key, so the badge is always meaningful.
         return@withContext if (!hash.isNullOrBlank()) {
-            // GitHub published a SHA-256 checksum -> integrity is verifiable.
             SecurityStatus.Verified
         } else {
-            // Still an official GitHub release asset -> baseline trust.
             SecurityStatus.Unknown
         }
     }
+
+    companion object {
+        private const val TAG = "SecurityChecker"
+    }
+}
+
+/**
+ * Compatibility facade preserving static [SecurityChecker.check] access.
+ */
+object SecurityChecker {
+    private val defaultChecker = ApkSecurityChecker()
+
+    suspend fun check(asset: ReleaseAsset?): SecurityStatus = defaultChecker.check(asset)
 }

@@ -95,4 +95,17 @@
     <color name="cat_bg_brown">#FFF5EBE6</color>
     <color name="cat_bg_cyan">#FFCFFAFE</color>
     <color name="cat_bg_lime">#FFECFCCB</color>
+
+    <!-- Custom Toggle Switch Colors -->
+    <color name="switch_track_on">#FF00B88A</color>
+    <color name="switch_track_on_end">#FF00A078</color>
+    <color name="switch_track_on_border">#FF008F6B</color>
+    <color name="switch_track_off">#FFD1D5DB</color>
+    <color name="switch_track_off_end">#FFC5CAD1</color>
+    <color name="switch_track_off_border">#FFB8BFC8</color>
+    <color name="switch_thumb_fill">#FFFFFFFF</color>
+    <color name="switch_thumb_fill_bottom">#FFF3F5F7</color>
+    <color name="switch_thumb_edge">#FFE2E6EB</color>
+    <color name="switch_indicator_on">#FFFFFFFF</color>
+    <color name="switch_indicator_off">#FF6B7280</color>
 </resources>

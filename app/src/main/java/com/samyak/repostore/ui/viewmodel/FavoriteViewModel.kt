@@ -58,7 +58,8 @@ class FavoriteViewModel(
             }
             FilterMode.ALL_INSTALLED -> {
                 val installedApps = mutableListOf<FavoriteApp>()
-                
+                val installedIndex = loadInstalledAppsIndex()
+
                 // 1. Process Favorites that are installed on the device
                 favorites.forEach { app ->
                     val pkg = mappings.find {
@@ -67,11 +68,11 @@ class FavoriteViewModel(
                     }?.packageName
                     if (pkg != null && isPackageInstalled(pkg)) {
                         installedApps.add(app.copy(ownerAvatarUrl = "pkg:$pkg"))
-                    } else if (isAppInstalledFallback(app.name)) {
+                    } else if (isAppInstalledInIndex(app.name, installedIndex)) {
                         installedApps.add(app)
                     }
                 }
-                
+
                 // 2. Process Mappings for tracked/installed apps (even if not favorited)
                 mappings.forEach { mapping ->
                     if (installedApps.none {
@@ -98,7 +99,7 @@ class FavoriteViewModel(
                 if (installedApps.isEmpty()) {
                     FavoriteUiState.Empty
                 } else {
-                    FavoriteUiState.Success(installedApps.distinctBy { "${it.ownerLogin}/${it.name}" })
+                    FavoriteUiState.Success(installedApps.distinctBy { "${it.ownerLogin}/${it.name}".lowercase() })
                 }
             }
         }
@@ -110,6 +111,30 @@ class FavoriteViewModel(
         initialValue = FavoriteUiState.Loading
     )
 
+    private data class InstalledAppEntry(val packageName: String, val label: String)
+
+    private fun loadInstalledAppsIndex(): List<InstalledAppEntry> {
+        val pm = packageManager ?: return emptyList()
+        return try {
+            val installed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getInstalledApplications(0)
+            }
+            installed.map { appInfo ->
+                val label = try {
+                    pm.getApplicationLabel(appInfo).toString()
+                } catch (_: Exception) {
+                    appInfo.packageName
+                }
+                InstalledAppEntry(appInfo.packageName, label)
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     private fun isPackageInstalled(packageName: String): Boolean {
         val pm = packageManager ?: return false
         return try {
@@ -120,27 +145,16 @@ class FavoriteViewModel(
                 pm.getPackageInfo(packageName, 0)
             }
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
 
-    private fun isAppInstalledFallback(appName: String): Boolean {
-        val pm = packageManager ?: return false
-        return try {
-            val installed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                pm.getInstalledApplications(0)
-            }
-            installed.any { appInfo ->
-                val label = pm.getApplicationLabel(appInfo).toString()
-                label.equals(appName, ignoreCase = true) ||
-                appInfo.packageName.contains(appName, ignoreCase = true)
-            }
-        } catch (e: Exception) {
-            false
+    private fun isAppInstalledInIndex(appName: String, index: List<InstalledAppEntry>): Boolean {
+        if (index.isEmpty()) return false
+        return index.any { entry ->
+            entry.label.equals(appName, ignoreCase = true) ||
+                entry.packageName.contains(appName, ignoreCase = true)
         }
     }
 

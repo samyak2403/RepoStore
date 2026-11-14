@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 class HomeViewModel(private val repository: GitHubRepository) : ViewModel() {
 
@@ -25,7 +26,7 @@ class HomeViewModel(private val repository: GitHubRepository) : ViewModel() {
     val displayCategories: List<AppCategory> = AppCategory.entries.filter { it != AppCategory.ALL }
 
     // Track requested categories to avoid duplicate API calls
-    private val requestedCategories = mutableSetOf<AppCategory>()
+    private val requestedCategories: MutableSet<AppCategory> = ConcurrentHashMap.newKeySet()
 
     private var loadJob: Job? = null
 
@@ -63,21 +64,25 @@ class HomeViewModel(private val repository: GitHubRepository) : ViewModel() {
      */
     fun loadCategoryIfNeeded(category: AppCategory) {
         if (category == AppCategory.ALL) return
-        if (requestedCategories.contains(category)) return
-        requestedCategories.add(category)
+        if (!requestedCategories.add(category)) return
 
         viewModelScope.launch {
             try {
                 val result = repository.getAppsByCategory(category, 1)
-                result.onSuccess { apps ->
-                    if (apps.isNotEmpty()) {
-                        _categoryApps.value = _categoryApps.value.toMutableMap().apply {
-                            put(category, apps)
+                result.fold(
+                    onSuccess = { apps ->
+                        if (apps.isNotEmpty()) {
+                            _categoryApps.value = _categoryApps.value.toMutableMap().apply {
+                                put(category, apps)
+                            }
                         }
+                    },
+                    onFailure = {
+                        requestedCategories.remove(category)
                     }
-                }
+                )
             } catch (e: Exception) {
-                // Silently skip failed categories
+                requestedCategories.remove(category)
             }
         }
     }

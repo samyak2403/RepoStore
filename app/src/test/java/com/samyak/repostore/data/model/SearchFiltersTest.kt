@@ -55,5 +55,29 @@ class SearchFiltersTest {
         assertTrue("Query should contain language filter", query.contains("language:Kotlin"))
         assertTrue("Query should contain stars filter", query.contains("stars:>=50"))
     }
+
+    @Test
+    fun buildQuery_withAndroidOnlyDisabled_omitsTopicAndIncludesReadme() {
+        val filters = SearchFilters(
+            query = "NetVeill",
+            androidOnly = false,
+            searchInReadme = true
+        )
+        val query = filters.buildQuery()
+
+        assertTrue("Query should include README scope", query.contains("NetVeill in:name,description,readme"))
+        assertTrue("Query should not force topic:android when androidOnly is false", !query.contains("topic:android"))
+        assertTrue("Query should still exclude archived repos", query.contains("archived:false"))
+    }
+
+    @Test
+    fun buildBroadQuery_andBareFallback_preserveQualifiersWithoutTopicAndroid() {
+        val filters = SearchFilters(language = "Kotlin", minStars = 10)
+        val broad = filters.buildBroadQuery("NetVeill", includeReadme = true)
+        val bare = filters.buildBareFallbackQuery("NetVeill")
+
+        assertEquals("NetVeill in:name,description,readme language:Kotlin stars:>=10 archived:false", broad)
+        assertEquals("NetVeill language:Kotlin stars:>=10 archived:false", bare)
+    }
 }
 

@@ -108,7 +108,7 @@
 
             </LinearLayout>
 
-            <!-- Empty state -->
+            <!-- Empty / Error state -->
             <LinearLayout
                 android:id="@+id/layout_empty"
                 android:layout_width="match_parent"
@@ -119,6 +119,7 @@
                 android:visibility="gone">
 
                 <ImageView
+                    android:id="@+id/iv_empty_icon"
                     android:layout_width="80dp"
                     android:layout_height="80dp"
                     android:alpha="0.5"
@@ -127,6 +128,7 @@
                     app:tint="?attr/colorOnSurfaceVariant" />
 
                 <TextView
+                    android:id="@+id/tv_empty_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
@@ -136,6 +138,7 @@
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <TextView
+                    android:id="@+id/tv_empty_subtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -150,6 +153,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="20dp"
+                    android:minHeight="48dp"
                     android:text="@string/check_for_updates"
                     android:textAllCaps="false"
                     app:cornerRadius="20dp" />

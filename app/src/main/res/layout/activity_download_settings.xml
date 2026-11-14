@@ -62,10 +62,11 @@
                         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                         android:textColor="?attr/colorOnSurface" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.samyak.repostore.ui.view.EmeraldToggleSwitch
                         android:id="@+id/switch_mirror_proxy"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/enable_mirror_proxy" />
 
                 </LinearLayout>
 
@@ -182,10 +183,11 @@
                         android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                         android:textColor="?attr/colorOnSurface" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.samyak.repostore.ui.view.EmeraldToggleSwitch
                         android:id="@+id/switch_multi_part"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/enable_multi_part" />
 
                 </LinearLayout>
 

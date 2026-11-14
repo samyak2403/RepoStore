@@ -20,6 +20,7 @@ import com.samyak.repostore.databinding.ActivityDonateBinding
 import com.samyak.repostore.ui.adapter.PaymentAppAdapter
 import com.samyak.repostore.ui.adapter.PaymentAppInfo
 import com.samyak.repostore.util.QrCodeGenerator
+import com.samyak.repostore.util.openExternalUrl
 
 class DonateActivity : AppCompatActivity() {
 
@@ -65,12 +66,7 @@ class DonateActivity : AppCompatActivity() {
         }
 
         binding.cardBuyMeACoffee.setOnClickListener {
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/mr_samyakkamble"))
-                startActivity(intent)
-            } catch (e: Exception) {
-                Toast.makeText(this, R.string.cannot_open_payment_app, Toast.LENGTH_SHORT).show()
-            }
+            openExternalUrl("https://buymeacoffee.com/mr_samyakkamble")
         }
     }
 

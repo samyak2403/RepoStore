@@ -24,6 +24,7 @@ import com.samyak.repostore.ui.viewmodel.DeveloperUiState
 import com.samyak.repostore.ui.viewmodel.DeveloperViewModel
 import com.samyak.repostore.ui.viewmodel.DeveloperViewModelFactory
 import com.samyak.repostore.util.RateLimitDialog
+import com.samyak.repostore.util.openExternalUrl
 import kotlinx.coroutines.launch
 
 class DeveloperActivity : AppCompatActivity() {
@@ -87,8 +88,7 @@ class DeveloperActivity : AppCompatActivity() {
         }
 
         binding.btnGithubProfile.setOnClickListener {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/$developerName"))
-            startActivity(intent)
+            openExternalUrl("https://github.com/$developerName")
         }
     }
 

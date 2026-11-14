@@ -42,6 +42,7 @@ import com.samyak.repostore.util.AppInstaller
 import com.samyak.repostore.util.ApkArchitectureHelper
 import com.samyak.repostore.util.SecurityChecker
 import com.samyak.repostore.util.SecurityStatus
+import com.samyak.repostore.util.openExternalUrl
 import androidx.core.content.ContextCompat
 import android.content.res.ColorStateList
 import com.samyak.repostore.ui.widget.ShimmerFrameLayout
@@ -144,8 +145,9 @@ class DetailActivity : AppCompatActivity() {
             return
         }
 
-        appInstaller = AppInstaller.getInstance(this)
-        favoriteAppDao = (application as RepoStoreApp).favoriteAppDao
+        val container = (application as RepoStoreApp).container
+        appInstaller = container.appInstaller
+        favoriteAppDao = container.favoriteAppDao
         
         // Initialize shimmer layout
         shimmerLayout = findViewById(R.id.skeleton_layout)
@@ -606,7 +608,7 @@ class DetailActivity : AppCompatActivity() {
         updateSecurityBadge(SecurityStatus.Checking)
 
         securityJob = lifecycleScope.launch {
-            val status = SecurityChecker.check(asset)
+            val status = (application as RepoStoreApp).container.securityChecker.check(asset)
             if (!isActive) return@launch
             updateSecurityBadge(status)
         }
@@ -726,8 +728,7 @@ class DetailActivity : AppCompatActivity() {
     }
 
     private fun openUrl(url: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        startActivity(intent)
+        openExternalUrl(url)
     }
 
     private fun setDownloadButtonState(text: String, isEnabled: Boolean = true, subtitle: String? = null) {
@@ -830,7 +831,8 @@ class DetailActivity : AppCompatActivity() {
             fileName = asset.name,
             title = repoName,
             repoName = repoName,
-            ownerName = owner
+            ownerName = owner,
+            expectedSha256 = asset.sha256
         ) { state ->
             // Ensure UI updates run on main thread
             runOnUiThread {

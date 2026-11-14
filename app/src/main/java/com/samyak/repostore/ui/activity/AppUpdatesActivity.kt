@@ -26,6 +26,7 @@ import com.samyak.repostore.ui.viewmodel.AppUpdatesUiState
 import com.samyak.repostore.ui.viewmodel.AppUpdatesViewModel
 import com.samyak.repostore.ui.viewmodel.AppUpdatesViewModelFactory
 import com.samyak.repostore.util.AppInstaller
+import com.samyak.repostore.util.RateLimitDialog
 import kotlinx.coroutines.launch
 
 class AppUpdatesActivity : AppCompatActivity() {
@@ -35,13 +36,13 @@ class AppUpdatesActivity : AppCompatActivity() {
     private lateinit var adapter: AppUpdateAdapter
 
     private val viewModel: AppUpdatesViewModel by viewModels {
-        val app = application as RepoStoreApp
+        val container = (application as RepoStoreApp).container
         AppUpdatesViewModelFactory(
-            repository = app.repository,
-            installedAppMappingDao = app.installedAppMappingDao,
-            favoriteAppDao = app.favoriteAppDao,
-            cachedRepoDao = app.database.cachedRepoDao(),
-            appInstaller = AppInstaller.getInstance(this)
+            repository = container.repository,
+            installedAppMappingDao = container.installedAppMappingDao,
+            favoriteAppDao = container.favoriteAppDao,
+            cachedRepoDao = container.cachedRepoDao,
+            appInstaller = container.appInstaller
         )
     }
 
@@ -82,7 +83,7 @@ class AppUpdatesActivity : AppCompatActivity() {
             insets
         }
 
-        appInstaller = AppInstaller.getInstance(this)
+        appInstaller = (application as RepoStoreApp).container.appInstaller
 
         setupToolbar()
         setupRecyclerView()
@@ -150,13 +151,20 @@ class AppUpdatesActivity : AppCompatActivity() {
                 binding.layoutHeader.visibility = View.GONE
                 binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
+                binding.tvEmptyTitle.setText(R.string.no_updates_available)
+                binding.tvEmptySubtitle.setText(R.string.no_updates_available_hint)
+                binding.btnCheckUpdates.setText(R.string.check_for_updates)
             }
             is AppUpdatesUiState.Error -> {
                 binding.layoutLoading.visibility = View.GONE
                 binding.layoutHeader.visibility = View.GONE
                 binding.rvUpdates.visibility = View.GONE
                 binding.layoutEmpty.visibility = View.VISIBLE
-                Toast.makeText(this, R.string.updates_check_failed, Toast.LENGTH_SHORT).show()
+                binding.tvEmptyTitle.setText(R.string.updates_check_failed)
+                binding.tvEmptySubtitle.text = state.message
+                binding.btnCheckUpdates.setText(R.string.retry)
+                RateLimitDialog.showIfNeeded(this, state.message)
+                Toast.makeText(this, state.message, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -211,7 +219,8 @@ class AppUpdatesActivity : AppCompatActivity() {
             fileName = app.asset.name,
             title = app.appName,
             repoName = app.repo,
-            ownerName = app.owner
+            ownerName = app.owner,
+            expectedSha256 = app.asset.sha256
         ) { state ->
             runOnUiThread {
                 when (state) {

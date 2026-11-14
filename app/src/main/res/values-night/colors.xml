@@ -77,4 +77,17 @@
     <color name="cat_bg_brown">#FF261C18</color>
     <color name="cat_bg_cyan">#FF0A2830</color>
     <color name="cat_bg_lime">#FF1F2E0A</color>
+
+    <!-- Custom Toggle Switch Colors (Dark Mode) -->
+    <color name="switch_track_on">#FF00C292</color>
+    <color name="switch_track_on_end">#FF00A67C</color>
+    <color name="switch_track_on_border">#FF008D6A</color>
+    <color name="switch_track_off">#FF2D333B</color>
+    <color name="switch_track_off_end">#FF262B33</color>
+    <color name="switch_track_off_border">#FF444C56</color>
+    <color name="switch_thumb_fill">#FFFFFFFF</color>
+    <color name="switch_thumb_fill_bottom">#FFEEF1F4</color>
+    <color name="switch_thumb_edge">#FFD1D5DB</color>
+    <color name="switch_indicator_on">#FFFFFFFF</color>
+    <color name="switch_indicator_off">#FF9CA3AF</color>
 </resources>

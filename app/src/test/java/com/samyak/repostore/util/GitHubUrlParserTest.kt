@@ -81,4 +81,22 @@ class GitHubUrlParserTest {
         assertEquals("samyak2403", info?.owner)
         assertEquals("RepoStore", info?.name)
     }
+
+    @Test
+    fun parseOwnerRepo_acceptsShorthandAndRejectsMultiWordQueries() {
+        val shorthand = GitHubUrlParser.parseOwnerRepo("samyak2403/NetVeill")
+        assertNotNull(shorthand)
+        assertEquals("samyak2403", shorthand?.owner)
+        assertEquals("NetVeill", shorthand?.name)
+
+        val withGitSuffix = GitHubUrlParser.parseOwnerRepo("samyak2403/NetVeill.git")
+        assertNotNull(withGitSuffix)
+        assertEquals("samyak2403", withGitSuffix?.owner)
+        assertEquals("NetVeill", withGitSuffix?.name)
+
+        // parse() strictly requires github.com URL and continues to return null for plain shorthand
+        assertNull(GitHubUrlParser.parse("samyak2403/NetVeill"))
+        assertNull(GitHubUrlParser.parseOwnerRepo("NetVeill app"))
+        assertNull(GitHubUrlParser.parseOwnerRepo("NetVeill"))
+    }
 }

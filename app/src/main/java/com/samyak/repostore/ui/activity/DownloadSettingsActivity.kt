@@ -10,70 +10,79 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import com.samyak.repostore.R
-import com.samyak.repostore.data.prefs.DownloadPreferences
+import androidx.lifecycle.lifecycleScope
+import com.samyak.repostore.RepoStoreApp
+import com.samyak.repostore.data.prefs.DownloadSettingsStore
 import com.samyak.repostore.databinding.ActivityDownloadSettingsBinding
+import kotlinx.coroutines.launch
 
 class DownloadSettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityDownloadSettingsBinding
-    
+    private lateinit var downloadSettingsStore: DownloadSettingsStore
+    private var isPopulatingUi = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
+
         binding = ActivityDownloadSettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
+
+        downloadSettingsStore = (application as? RepoStoreApp)?.container?.downloadSettingsStore
+            ?: DownloadSettingsStore.getInstance(this)
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        
+
         setupToolbar()
         setupMirrorProxySection()
         setupMultiPartSection()
         loadSettings()
     }
-    
+
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
             finish()
         }
     }
-    
+
     private fun setupMirrorProxySection() {
-        // Mirror proxy toggle
         binding.switchMirrorProxy.setOnCheckedChangeListener { _, isChecked ->
-            DownloadPreferences.setMirrorProxyEnabled(this, isChecked)
             binding.tilProxyUrl.isEnabled = isChecked
             binding.chipGroupProxies.isEnabled = isChecked
+            if (!isPopulatingUi) {
+                lifecycleScope.launch {
+                    downloadSettingsStore.setMirrorProxyEnabled(isChecked)
+                }
+            }
         }
-        
-        // Proxy URL input
+
         binding.etProxyUrl.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
+                if (isPopulatingUi) return
                 val url = s?.toString()?.trim()
-                if (!url.isNullOrBlank()) {
-                    // Ensure URL has https:// prefix
+                val finalUrl = if (!url.isNullOrBlank()) {
                     val normalizedUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) {
                         "https://$url"
                     } else {
                         url
                     }
-                    // Ensure URL ends with /
-                    val finalUrl = if (normalizedUrl.endsWith("/")) normalizedUrl else "$normalizedUrl/"
-                    DownloadPreferences.setMirrorProxyUrl(this@DownloadSettingsActivity, finalUrl)
+                    if (normalizedUrl.endsWith("/")) normalizedUrl else "$normalizedUrl/"
                 } else {
-                    DownloadPreferences.setMirrorProxyUrl(this@DownloadSettingsActivity, null)
+                    null
+                }
+                lifecycleScope.launch {
+                    downloadSettingsStore.setMirrorProxyUrl(finalUrl)
                 }
             }
         })
-        
-        // Popular proxy chips
+
         binding.chipGhproxy.setOnClickListener {
             binding.etProxyUrl.setText("https://gh-proxy.com/")
         }
@@ -84,43 +93,52 @@ class DownloadSettingsActivity : AppCompatActivity() {
             binding.etProxyUrl.setText("https://mirror.ghproxy.com/")
         }
     }
-    
+
     private fun setupMultiPartSection() {
-        // Multi-part download toggle
         binding.switchMultiPart.setOnCheckedChangeListener { _, isChecked ->
-            DownloadPreferences.setMultiPartEnabled(this, isChecked)
             binding.layoutThreadCount.isVisible = isChecked
+            if (!isPopulatingUi) {
+                lifecycleScope.launch {
+                    downloadSettingsStore.setMultiPartEnabled(isChecked)
+                }
+            }
         }
-        
-        // Thread count slider
+
         binding.sliderThreadCount.addOnChangeListener { _, value, _ ->
             val threadCount = value.toInt()
             binding.tvThreadCount.text = threadCount.toString()
-            DownloadPreferences.setThreadCount(this, threadCount)
+            if (!isPopulatingUi) {
+                lifecycleScope.launch {
+                    downloadSettingsStore.setThreadCount(threadCount)
+                }
+            }
         }
     }
-    
+
     private fun loadSettings() {
-        // Load mirror proxy settings
-        val mirrorEnabled = DownloadPreferences.isMirrorProxyEnabled(this)
-        binding.switchMirrorProxy.isChecked = mirrorEnabled
-        binding.tilProxyUrl.isEnabled = mirrorEnabled
-        
-        val proxyUrl = DownloadPreferences.getMirrorProxyUrl(this)
-        if (!proxyUrl.isNullOrBlank()) {
-            binding.etProxyUrl.setText(proxyUrl)
+        lifecycleScope.launch {
+            val settings = downloadSettingsStore.getSettings()
+            isPopulatingUi = true
+            try {
+                binding.switchMirrorProxy.isChecked = settings.mirrorProxyEnabled
+                binding.tilProxyUrl.isEnabled = settings.mirrorProxyEnabled
+                binding.chipGroupProxies.isEnabled = settings.mirrorProxyEnabled
+
+                if (!settings.mirrorProxyUrl.isNullOrBlank()) {
+                    binding.etProxyUrl.setText(settings.mirrorProxyUrl)
+                }
+
+                binding.switchMultiPart.isChecked = settings.multiPartEnabled
+                binding.layoutThreadCount.isVisible = settings.multiPartEnabled
+
+                binding.sliderThreadCount.value = settings.threadCount.toFloat()
+                binding.tvThreadCount.text = settings.threadCount.toString()
+            } finally {
+                isPopulatingUi = false
+            }
         }
-        
-        // Load multi-part settings
-        val multiPartEnabled = DownloadPreferences.isMultiPartEnabled(this)
-        binding.switchMultiPart.isChecked = multiPartEnabled
-        binding.layoutThreadCount.isVisible = multiPartEnabled
-        
-        val threadCount = DownloadPreferences.getThreadCount(this)
-        binding.sliderThreadCount.value = threadCount.toFloat()
-        binding.tvThreadCount.text = threadCount.toString()
     }
-    
+
     companion object {
         fun newIntent(context: Context): Intent {
             return Intent(context, DownloadSettingsActivity::class.java)

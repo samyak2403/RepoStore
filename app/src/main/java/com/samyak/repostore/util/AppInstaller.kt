@@ -15,9 +15,12 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.samyak.repostore.data.prefs.DownloadPreferences
+import com.samyak.repostore.R
 import com.samyak.repostore.RepoStoreApp
+import com.samyak.repostore.data.db.InstalledAppMappingDao
 import com.samyak.repostore.data.model.InstalledAppMapping
+import com.samyak.repostore.data.prefs.DownloadPreferences
+import com.samyak.repostore.data.prefs.DownloadSettingsProvider
 import kotlinx.coroutines.*
 import java.io.File
 
@@ -25,7 +28,20 @@ import java.io.File
  * Professional App Installer - Inspired by GitHub Store project
  * Handles APK download and installation with proper state management
  */
-class AppInstaller private constructor(private val context: Context) {
+class AppInstaller internal constructor(
+    private val context: Context,
+    private val downloadSettings: DownloadSettingsProvider,
+    private val multiPartDownloader: MultiPartDownloader = MultiPartDownloader(context, downloadSettings),
+    private val checksumVerifier: ApkChecksumVerifier = ApkChecksumVerifier(),
+    private val mappingDaoProvider: () -> InstalledAppMappingDao? = {
+        (context.applicationContext as? RepoStoreApp)?.installedAppMappingDao
+    }
+) {
+
+    private constructor(context: Context) : this(
+        context = context,
+        downloadSettings = DownloadPreferences.adapterFor(context)
+    )
 
     companion object {
         private const val TAG = "AppInstaller"
@@ -69,22 +85,20 @@ class AppInstaller private constructor(private val context: Context) {
     private val downloadManager: DownloadManager by lazy {
         context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     }
-    
-    private val multiPartDownloader: MultiPartDownloader by lazy {
-        MultiPartDownloader(context)
-    }
-    
+
     private val downloadScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     // Lazy so constructing AppInstaller doesn't touch the Android main Looper eagerly
     // (which would throw in plain JVM unit tests). Created on first actual use.
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
-    
+
     private var currentDownloadId: Long = -1
     private var currentRepoName: String? = null
     private var currentOwnerName: String? = null
+    private var currentExpectedSha256: String? = null
     private var downloadReceiver: BroadcastReceiver? = null
     private var progressRunnable: Runnable? = null
+    @Volatile
     private var isDownloading = false
     private var stateCallback: ((InstallState) -> Unit)? = null
 
@@ -104,7 +118,7 @@ class AppInstaller private constructor(private val context: Context) {
     }
 
     /**
-     * Start download and install APK
+     * Start download and install APK with optional expected SHA-256 verification.
      */
     fun download(
         url: String,
@@ -112,9 +126,9 @@ class AppInstaller private constructor(private val context: Context) {
         title: String,
         repoName: String? = null,
         ownerName: String? = null,
+        expectedSha256: String? = null,
         onStateChanged: (InstallState) -> Unit
     ) {
-        // Prevent multiple downloads
         if (isDownloading) {
             mainHandler.post {
                 onStateChanged(InstallState.Error("Download already in progress"))
@@ -122,26 +136,36 @@ class AppInstaller private constructor(private val context: Context) {
             return
         }
 
-        // Store callback and context
+        val safeFileName = File(fileName).name.ifBlank { "download.apk" }
+
         stateCallback = onStateChanged
         currentRepoName = repoName
         currentOwnerName = ownerName
+        currentExpectedSha256 = expectedSha256
         isDownloading = true
 
-        // Clean old file
-        deleteFile(fileName)
+        deleteFile(safeFileName)
 
-        // Check if multi-part download is enabled
-        val useMultiPart = DownloadPreferences.isMultiPartEnabled(context) || 
-                          DownloadPreferences.isMirrorProxyEnabled(context)
-        
-        if (useMultiPart) {
-            downloadWithMultiPart(url, fileName, title, onStateChanged)
-        } else {
-            downloadWithDownloadManager(url, fileName, title, onStateChanged)
+        downloadScope.launch {
+            val settings = try {
+                downloadSettings.getSettings()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load download settings, using defaults", e)
+                com.samyak.repostore.data.prefs.DownloadSettings()
+            }
+
+            val useMultiPart = settings.multiPartEnabled || settings.mirrorProxyEnabled
+            if (useMultiPart) {
+                downloadWithMultiPart(url, safeFileName, title, expectedSha256, onStateChanged)
+            } else {
+                val transformedUrl = settings.transformUrl(url)
+                mainHandler.post {
+                    downloadWithDownloadManager(transformedUrl, safeFileName, title, expectedSha256, onStateChanged)
+                }
+            }
         }
     }
-    
+
     /**
      * Download using multi-part downloader with coroutines
      */
@@ -149,49 +173,53 @@ class AppInstaller private constructor(private val context: Context) {
         url: String,
         fileName: String,
         title: String,
+        expectedSha256: String?,
         onStateChanged: (InstallState) -> Unit
     ) {
         Log.d(TAG, "Using multi-part downloader for: $url")
-        
+
+        mainHandler.post {
+            onStateChanged(InstallState.Downloading(0, "0 B", "..."))
+        }
+
         downloadScope.launch {
             try {
-                multiPartDownloader.download(url, fileName) { state ->
-                    mainHandler.post {
-                        when (state) {
-                            is MultiPartDownloader.DownloadState.Idle -> {
-                                onStateChanged(InstallState.Idle)
+                multiPartDownloader.download(url, fileName, expectedSha256) { state ->
+                    when (state) {
+                        is MultiPartDownloader.DownloadState.Idle -> {
+                            mainHandler.post { onStateChanged(InstallState.Idle) }
+                        }
+                        is MultiPartDownloader.DownloadState.Downloading -> {
+                            val downloadedStr = formatSize(state.downloadedBytes)
+                            val totalStr = if (state.totalBytes > 0) formatSize(state.totalBytes) else "..."
+                            mainHandler.post {
+                                onStateChanged(
+                                    InstallState.Downloading(
+                                        state.progress,
+                                        downloadedStr,
+                                        totalStr
+                                    )
+                                )
                             }
-                            is MultiPartDownloader.DownloadState.Downloading -> {
-                                val downloadedStr = formatSize(state.downloadedBytes)
-                                val totalStr = if (state.totalBytes > 0) formatSize(state.totalBytes) else "..."
-                                onStateChanged(InstallState.Downloading(
-                                    state.progress,
-                                    downloadedStr,
-                                    totalStr
-                                ))
-                            }
-                            is MultiPartDownloader.DownloadState.Completed -> {
-                                onStateChanged(InstallState.Installing)
-                                
-                                // Extract and save package mapping if we have repo info
-                                if (currentRepoName != null && currentOwnerName != null) {
-                                    val apkFile = state.file
-                                    if (apkFile.exists()) {
-                                        extractAndSavePackageName(apkFile, currentRepoName!!, currentOwnerName!!)
-                                    }
+                        }
+                        is MultiPartDownloader.DownloadState.Completed -> {
+                            handleMultiPartCompleted(state.file, expectedSha256, onStateChanged)
+                        }
+                        is MultiPartDownloader.DownloadState.Error -> {
+                            if (state.message.contains("checksum mismatch", ignoreCase = true) ||
+                                state.message.contains("SHA-256", ignoreCase = true)
+                            ) {
+                                Log.e(TAG, "APK integrity verification failed: ${state.message}")
+                                deleteFile(fileName)
+                                mainHandler.post {
+                                    onStateChanged(InstallState.Error(verificationFailureMessage()))
+                                    cleanup()
                                 }
-                                
-                                val installStarted = installApk(state.file)
-                                if (installStarted) {
-                                    onStateChanged(InstallState.Success)
-                                } else {
-                                    onStateChanged(InstallState.Error("Failed to start installation"))
-                                }
-                                cleanup()
-                            }
-                            is MultiPartDownloader.DownloadState.Error -> {
+                            } else {
                                 Log.w(TAG, "Multi-part download error: ${state.message}, falling back to DownloadManager")
-                                downloadWithDownloadManager(url, fileName, title, onStateChanged)
+                                mainHandler.post {
+                                    downloadWithDownloadManager(url, fileName, title, expectedSha256, onStateChanged)
+                                }
                             }
                         }
                     }
@@ -200,32 +228,70 @@ class AppInstaller private constructor(private val context: Context) {
                 Log.e(TAG, "Multi-part download error", e)
                 mainHandler.post {
                     Log.w(TAG, "Multi-part exception, falling back to DownloadManager: ${e.message}")
-                    downloadWithDownloadManager(url, fileName, title, onStateChanged)
+                    downloadWithDownloadManager(url, fileName, title, expectedSha256, onStateChanged)
                 }
             }
         }
-        
-        // Send initial downloading state
+    }
+
+    private fun handleMultiPartCompleted(
+        apkFile: File,
+        expectedSha256: String?,
+        onStateChanged: (InstallState) -> Unit
+    ) {
+        val repoNameSnapshot = currentRepoName
+        val ownerNameSnapshot = currentOwnerName
+
         mainHandler.post {
-            onStateChanged(InstallState.Downloading(0, "0 B", "..."))
+            onStateChanged(InstallState.Installing)
+        }
+
+        downloadScope.launch {
+            val verification = checksumVerifier.verifyFile(apkFile, expectedSha256)
+            when (verification) {
+                is ApkChecksumVerifier.ChecksumVerificationResult.Mismatch,
+                is ApkChecksumVerifier.ChecksumVerificationResult.Error -> {
+                    Log.e(TAG, "Post-download SHA-256 verification failed: $verification")
+                    if (apkFile.exists()) apkFile.delete()
+                    mainHandler.post {
+                        onStateChanged(InstallState.Error(verificationFailureMessage()))
+                        cleanup()
+                    }
+                    return@launch
+                }
+                is ApkChecksumVerifier.ChecksumVerificationResult.Verified,
+                ApkChecksumVerifier.ChecksumVerificationResult.SkippedNoDigest -> Unit
+            }
+
+            if (repoNameSnapshot != null && ownerNameSnapshot != null && apkFile.exists()) {
+                extractAndSavePackageName(apkFile, repoNameSnapshot, ownerNameSnapshot)
+            }
+
+            mainHandler.post {
+                val installStarted = installApk(apkFile)
+                if (installStarted) {
+                    onStateChanged(InstallState.Success)
+                } else {
+                    onStateChanged(InstallState.Error("Failed to start installation"))
+                }
+                cleanup()
+            }
         }
     }
-    
+
     /**
-     * Download using system DownloadManager (fallback)
+     * Download using system DownloadManager (fallback or default when multi-part/proxy is off)
      */
     private fun downloadWithDownloadManager(
-        url: String,
+        downloadUrl: String,
         fileName: String,
         title: String,
+        expectedSha256: String?,
         onStateChanged: (InstallState) -> Unit
     ) {
         try {
-            // Apply mirror proxy if enabled
-            val downloadUrl = DownloadPreferences.transformUrl(context, url)
             Log.d(TAG, "Using DownloadManager for: $downloadUrl")
-            
-            // Create request
+
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
                 setTitle(title)
                 setDescription("Downloading APK...")
@@ -236,31 +302,30 @@ class AppInstaller private constructor(private val context: Context) {
                 setMimeType("application/vnd.android.package-archive")
             }
 
-            // Enqueue download
             currentDownloadId = downloadManager.enqueue(request)
+            currentExpectedSha256 = expectedSha256
             Log.d(TAG, "Download started: $currentDownloadId, URL: $downloadUrl")
 
-            // Send initial downloading state
             mainHandler.post {
                 onStateChanged(InstallState.Downloading(0, "0 B", "..."))
             }
 
-            // Register receiver
-            registerReceiver(fileName, onStateChanged)
-
-            // Start progress tracking
+            registerReceiver(fileName, expectedSha256, onStateChanged)
             startProgressTracking(onStateChanged)
-
         } catch (e: Exception) {
             Log.e(TAG, "Download error", e)
-            isDownloading = false
+            cleanup()
             mainHandler.post {
                 onStateChanged(InstallState.Error(e.message ?: "Download failed"))
             }
         }
     }
 
-    private fun registerReceiver(fileName: String, onStateChanged: (InstallState) -> Unit) {
+    private fun registerReceiver(
+        fileName: String,
+        expectedSha256: String?,
+        onStateChanged: (InstallState) -> Unit
+    ) {
         unregisterReceiver()
 
         downloadReceiver = object : BroadcastReceiver() {
@@ -269,12 +334,11 @@ class AppInstaller private constructor(private val context: Context) {
                 Log.d(TAG, "Download complete received: id=$id, currentId=$currentDownloadId")
                 if (id == currentDownloadId) {
                     stopProgressTracking()
-                    checkDownloadStatus(fileName, onStateChanged)
+                    checkDownloadStatus(fileName, expectedSha256, onStateChanged)
                 }
             }
         }
 
-        // For Android 13+ (TIRAMISU), use RECEIVER_EXPORTED for system broadcasts
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(
                 downloadReceiver,
@@ -291,8 +355,15 @@ class AppInstaller private constructor(private val context: Context) {
         }
     }
 
-    private fun checkDownloadStatus(fileName: String, onStateChanged: (InstallState) -> Unit) {
-        val query = DownloadManager.Query().setFilterById(currentDownloadId)
+    private fun checkDownloadStatus(
+        fileName: String,
+        expectedSha256: String?,
+        onStateChanged: (InstallState) -> Unit
+    ) {
+        val downloadIdSnapshot = currentDownloadId
+        val repoNameSnapshot = currentRepoName
+        val ownerNameSnapshot = currentOwnerName
+        val query = DownloadManager.Query().setFilterById(downloadIdSnapshot)
         var cursor: Cursor? = null
 
         try {
@@ -307,47 +378,76 @@ class AppInstaller private constructor(private val context: Context) {
                             onStateChanged(InstallState.Installing)
                         }
 
-                        // Extract and save package mapping if we have repo info
-                        if (currentRepoName != null && currentOwnerName != null) {
-                            val apkFile = getDownloadFile(fileName)
-                            if (apkFile != null && apkFile.exists()) {
-                                extractAndSavePackageName(apkFile, currentRepoName!!, currentOwnerName!!)
+                        downloadScope.launch {
+                            val downloadUri = try {
+                                downloadManager.getUriForDownloadedFile(downloadIdSnapshot)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Unable to query DownloadManager URI", e)
+                                null
                             }
-                        }
-                        
-                        // Get the downloaded file URI from DownloadManager
-                        val downloadUri = downloadManager.getUriForDownloadedFile(currentDownloadId)
-                        
-                        if (downloadUri != null) {
-                            Log.d(TAG, "Download URI: $downloadUri")
-                            val installStarted = installApkFromUri(downloadUri)
+                            val apkFile = getDownloadFile(fileName)
+
+                            val verification = when {
+                                apkFile != null && apkFile.exists() ->
+                                    checksumVerifier.verifyFile(apkFile, expectedSha256)
+                                downloadUri != null ->
+                                    checksumVerifier.verifyUri(context, downloadUri, expectedSha256)
+                                !expectedSha256.isNullOrBlank() ->
+                                    ApkChecksumVerifier.ChecksumVerificationResult.Error(
+                                        "Downloaded APK could not be read for SHA-256 verification"
+                                    )
+                                else ->
+                                    ApkChecksumVerifier.ChecksumVerificationResult.SkippedNoDigest
+                            }
+
+                            when (verification) {
+                                is ApkChecksumVerifier.ChecksumVerificationResult.Mismatch,
+                                is ApkChecksumVerifier.ChecksumVerificationResult.Error -> {
+                                    Log.e(TAG, "DownloadManager SHA-256 verification failed: $verification")
+                                    deleteFile(fileName)
+                                    try {
+                                        if (downloadIdSnapshot != -1L) downloadManager.remove(downloadIdSnapshot)
+                                    } catch (_: Exception) {}
+                                    mainHandler.post {
+                                        onStateChanged(InstallState.Error(verificationFailureMessage()))
+                                        cleanup()
+                                    }
+                                    return@launch
+                                }
+                                is ApkChecksumVerifier.ChecksumVerificationResult.Verified,
+                                ApkChecksumVerifier.ChecksumVerificationResult.SkippedNoDigest -> Unit
+                            }
+
+                            if (repoNameSnapshot != null && ownerNameSnapshot != null &&
+                                apkFile != null && apkFile.exists()
+                            ) {
+                                extractAndSavePackageName(apkFile, repoNameSnapshot, ownerNameSnapshot)
+                            }
+
                             mainHandler.post {
-                                if (installStarted) {
-                                    onStateChanged(InstallState.Success)
-                                } else {
-                                    onStateChanged(InstallState.Error("Failed to start installation"))
+                                when {
+                                    downloadUri != null -> {
+                                        val installStarted = installApkFromUri(downloadUri)
+                                        if (installStarted) {
+                                            onStateChanged(InstallState.Success)
+                                        } else {
+                                            onStateChanged(InstallState.Error("Failed to start installation"))
+                                        }
+                                    }
+                                    apkFile != null && apkFile.exists() -> {
+                                        val installStarted = installApk(apkFile)
+                                        if (installStarted) {
+                                            onStateChanged(InstallState.Success)
+                                        } else {
+                                            onStateChanged(InstallState.Error("Failed to start installation"))
+                                        }
+                                    }
+                                    else -> {
+                                        Log.e(TAG, "Downloaded file not found: $fileName")
+                                        onStateChanged(InstallState.Error("Downloaded file not found"))
+                                    }
                                 }
                                 cleanup()
-                            }
-                        } else {
-                            // Fallback to file path
-                            val file = getDownloadFile(fileName)
-                            if (file != null && file.exists()) {
-                                val installStarted = installApk(file)
-                                mainHandler.post {
-                                    if (installStarted) {
-                                        onStateChanged(InstallState.Success)
-                                    } else {
-                                        onStateChanged(InstallState.Error("Failed to start installation"))
-                                    }
-                                    cleanup()
-                                }
-                            } else {
-                                Log.e(TAG, "Downloaded file not found: $fileName")
-                                mainHandler.post {
-                                    onStateChanged(InstallState.Error("Downloaded file not found"))
-                                    cleanup()
-                                }
                             }
                         }
                     }
@@ -370,6 +470,14 @@ class AppInstaller private constructor(private val context: Context) {
             }
         } finally {
             cursor?.close()
+        }
+    }
+
+    private fun verificationFailureMessage(): String {
+        return try {
+            context.getString(R.string.verification_mismatch)
+        } catch (_: Exception) {
+            "Security check failed: downloaded APK SHA-256 checksum does not match the GitHub release digest."
         }
     }
 
@@ -529,6 +637,7 @@ class AppInstaller private constructor(private val context: Context) {
         currentDownloadId = -1
         currentRepoName = null
         currentOwnerName = null
+        currentExpectedSha256 = null
         isDownloading = false
         stateCallback = null
     }
@@ -715,8 +824,8 @@ class AppInstaller private constructor(private val context: Context) {
 
         // 1. Check Database for known mapping (100% accurate)
         try {
-            val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
-            val mappedPackage = dao.getPackageNameSync(ownerName, repoName)
+            val dao = mappingDaoProvider()
+            val mappedPackage = dao?.getPackageNameSync(ownerName, repoName)
             if (mappedPackage != null && isInstalled(mappedPackage)) {
                 Log.d(TAG, "findPackage: DB MATCH — Found mapped package '$mappedPackage'")
                 return mappedPackage
@@ -735,9 +844,9 @@ class AppInstaller private constructor(private val context: Context) {
                 Log.d(TAG, "findPackage: SOURCE CODE MATCH — Resolved applicationId '$sourcePackageId'")
                 // Cache in DB for instant future lookups
                 try {
-                    val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
+                    val dao = mappingDaoProvider()
                     downloadScope.launch {
-                        dao.saveMapping(InstalledAppMapping(
+                        dao?.saveMapping(InstalledAppMapping(
                             ownerName = ownerName,
                             repoName = repoName,
                             packageName = sourcePackageId
@@ -762,9 +871,9 @@ class AppInstaller private constructor(private val context: Context) {
         val matchedPackage = findBestMatchingPackage(repoName, ownerName, expectedVersion)
         if (matchedPackage != null) {
             try {
-                val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
+                val dao = mappingDaoProvider()
                 downloadScope.launch {
-                    dao.saveMapping(InstalledAppMapping(
+                    dao?.saveMapping(InstalledAppMapping(
                         ownerName = ownerName,
                         repoName = repoName,
                         packageName = matchedPackage
@@ -783,8 +892,8 @@ class AppInstaller private constructor(private val context: Context) {
     fun clearMapping(repoName: String, ownerName: String) {
         downloadScope.launch {
             try {
-                val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
-                dao.deleteMapping(ownerName, repoName)
+                val dao = mappingDaoProvider()
+                dao?.deleteMapping(ownerName, repoName)
                 Log.d(TAG, "Cleared mapping for: $ownerName/$repoName")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to clear mapping", e)
@@ -1019,13 +1128,13 @@ class AppInstaller private constructor(private val context: Context) {
             Log.d(TAG, "Extracted package name from APK: $packageName")
             downloadScope.launch {
                 try {
-                    val dao = (context.applicationContext as RepoStoreApp).installedAppMappingDao
+                    val dao = mappingDaoProvider()
                     val mapping = InstalledAppMapping(
                         ownerName = ownerName,
                         repoName = repoName,
                         packageName = packageName
                     )
-                    dao.saveMapping(mapping)
+                    dao?.saveMapping(mapping)
                     Log.d(TAG, "Saved mapping: $ownerName/$repoName -> $packageName")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to save package mapping", e)

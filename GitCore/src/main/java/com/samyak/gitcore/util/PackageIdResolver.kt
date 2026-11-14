@@ -2,28 +2,31 @@ package com.samyak.gitcore.util
 
 /**
  * Generates prioritized URLs to files that may contain the applicationId / package name
- * for a GitHub repository's Android app (build.gradle, build.gradle.kts, AndroidManifest.xml).
- *
- * Similar to AppNameResolver but specifically targets the package/applicationId.
+ * for a GitHub repository's Android app (`build.gradle`, `build.gradle.kts`,
+ * `AndroidManifest.xml`, Compose Multiplatform, Expo/Capacitor, or .NET MAUI configs).
  */
 object PackageIdResolver {
 
-    private const val RAW_BASE_URL = "https://raw.githubusercontent.com"
-
-    /**
-     * Returns a prioritized list of raw URLs where the applicationId might be declared.
-     *
-     * Priority:
-     * 1. build.gradle / build.gradle.kts (contains `applicationId "com.example.app"`)
-     * 2. AndroidManifest.xml (contains `package="com.example.app"`)
-     * 3. Cross-platform config files (pubspec.yaml, package.json for the android dir)
-     */
     fun resolve(owner: String, name: String, defaultBranch: String?, language: String?): List<String> {
-        val branch = defaultBranch ?: "main"
-        val baseUrl = "$RAW_BASE_URL/$owner/$name/$branch"
-        val lang = language?.lowercase() ?: ""
+        return resolve(
+            owner = owner,
+            name = name,
+            defaultBranch = defaultBranch,
+            language = language,
+            fallbackBranches = GitHubRawUrlBuilder.DEFAULT_FALLBACK_BRANCHES
+        )
+    }
 
-        // Standard Android project layouts
+    fun resolve(
+        owner: String,
+        name: String,
+        defaultBranch: String?,
+        language: String?,
+        fallbackBranches: List<String>
+    ): List<String> {
+        val cleanName = name.trim().trim('/')
+        if (cleanName.isBlank()) return emptyList()
+
         val gradlePaths = listOf(
             "app/build.gradle.kts",
             "app/build.gradle",
@@ -36,44 +39,55 @@ object PackageIdResolver {
             "src/main/AndroidManifest.xml"
         )
 
-        // Cross-platform (Flutter, React Native, etc.)
-        val crossPlatformPaths = listOf(
-            "android/app/build.gradle.kts",
-            "android/app/build.gradle",
-            "android/app/src/main/AndroidManifest.xml"
-        )
-
-        // Dynamic module name patterns
-        val dynamicPaths = listOf(
-            "$name/build.gradle.kts",
-            "$name/build.gradle",
-            "$name-android/build.gradle.kts",
-            "$name-android/build.gradle",
-            "$name/src/main/AndroidManifest.xml",
-            "$name-android/src/main/AndroidManifest.xml"
-        )
-
-        // KMM (Kotlin Multiplatform) layouts
-        val kmmPaths = listOf(
+        val composeAndKmmPaths = listOf(
+            "composeApp/build.gradle.kts",
+            "composeApp/build.gradle",
+            "composeApp/src/androidMain/AndroidManifest.xml",
             "androidApp/build.gradle.kts",
             "androidApp/build.gradle",
             "androidApp/src/main/AndroidManifest.xml"
         )
 
-        // Flutter pubspec (contains the package name in the android block)
-        val flutterPaths = listOf(
+        val crossPlatformPaths = listOf(
+            "android/app/build.gradle.kts",
             "android/app/build.gradle",
-            "android/app/build.gradle.kts"
+            "android/app/src/main/AndroidManifest.xml",
+            "app.json",
+            "app.config.json",
+            "capacitor.config.json",
+            "capacitor.config.ts"
         )
 
-        // Prioritize based on detected language
-        val prioritizedPaths = when (lang) {
-            "dart" -> flutterPaths + crossPlatformPaths + gradlePaths + manifestPaths + dynamicPaths + kmmPaths
-            "javascript", "typescript" -> crossPlatformPaths + gradlePaths + manifestPaths + dynamicPaths + kmmPaths
-            "kotlin", "java" -> gradlePaths + manifestPaths + dynamicPaths + kmmPaths + crossPlatformPaths
-            else -> gradlePaths + manifestPaths + dynamicPaths + kmmPaths + crossPlatformPaths
+        val dotnetPaths = listOf(
+            "$cleanName/$cleanName.csproj",
+            "$cleanName.csproj",
+            "Platforms/Android/AndroidManifest.xml"
+        )
+
+        val dynamicPaths = listOf(
+            "$cleanName/build.gradle.kts",
+            "$cleanName/build.gradle",
+            "$cleanName-android/build.gradle.kts",
+            "$cleanName-android/build.gradle",
+            "$cleanName/src/main/AndroidManifest.xml",
+            "$cleanName-android/src/main/AndroidManifest.xml"
+        )
+
+        val prioritizedPaths = when (GitHubRawUrlBuilder.classifyEcosystem(language)) {
+            GitHubRawUrlBuilder.Ecosystem.CROSS_PLATFORM ->
+                crossPlatformPaths + gradlePaths + manifestPaths + composeAndKmmPaths + dynamicPaths + dotnetPaths
+            GitHubRawUrlBuilder.Ecosystem.DOTNET_MAUI ->
+                dotnetPaths + crossPlatformPaths + gradlePaths + manifestPaths + dynamicPaths + composeAndKmmPaths
+            GitHubRawUrlBuilder.Ecosystem.NATIVE_ANDROID ->
+                gradlePaths + manifestPaths + composeAndKmmPaths + dynamicPaths + crossPlatformPaths + dotnetPaths
         }
 
-        return prioritizedPaths.distinct().map { "$baseUrl/$it" }
+        return GitHubRawUrlBuilder.buildUrls(
+            owner = owner,
+            name = cleanName,
+            defaultBranch = defaultBranch,
+            relativePaths = prioritizedPaths,
+            fallbackBranches = fallbackBranches
+        )
     }
 }

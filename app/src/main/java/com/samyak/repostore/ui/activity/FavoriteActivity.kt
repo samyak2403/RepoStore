@@ -187,12 +187,18 @@ class FavoriteActivity : AppCompatActivity() {
             try {
                 val favorites = viewModel.getFavoritesForExport()
                 val json = Gson().toJson(favorites)
-                withContext(Dispatchers.IO) {
-                    contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        outputStream.write(json.toByteArray())
+                val wrote = withContext(Dispatchers.IO) {
+                    val stream = contentResolver.openOutputStream(uri) ?: return@withContext false
+                    stream.use { outputStream ->
+                        outputStream.write(json.toByteArray(Charsets.UTF_8))
                     }
+                    true
                 }
-                Toast.makeText(this@FavoriteActivity, R.string.export_successful, Toast.LENGTH_SHORT).show()
+                if (wrote) {
+                    Toast.makeText(this@FavoriteActivity, R.string.export_successful, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@FavoriteActivity, R.string.export_failed, Toast.LENGTH_SHORT).show()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this@FavoriteActivity, R.string.export_failed, Toast.LENGTH_SHORT).show()
@@ -208,11 +214,18 @@ class FavoriteActivity : AppCompatActivity() {
                         inputStream.bufferedReader().use { it.readText() }
                     }
                 }
-                if (json != null) {
+                if (!json.isNullOrBlank()) {
                     val type = object : TypeToken<List<FavoriteApp>>() {}.type
-                    val favorites: List<FavoriteApp> = Gson().fromJson(json, type)
-                    viewModel.importFavorites(favorites)
-                    Toast.makeText(this@FavoriteActivity, R.string.import_successful, Toast.LENGTH_SHORT).show()
+                    val parsed: List<FavoriteApp>? = Gson().fromJson(json, type)
+                    val validFavorites = parsed
+                        ?.filter { it.ownerLogin.isNotBlank() && it.name.isNotBlank() }
+                        .orEmpty()
+                    if (parsed != null && (validFavorites.isNotEmpty() || parsed.isEmpty())) {
+                        viewModel.importFavorites(validFavorites)
+                        Toast.makeText(this@FavoriteActivity, R.string.import_successful, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@FavoriteActivity, R.string.import_failed, Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     Toast.makeText(this@FavoriteActivity, R.string.import_failed, Toast.LENGTH_SHORT).show()
                 }

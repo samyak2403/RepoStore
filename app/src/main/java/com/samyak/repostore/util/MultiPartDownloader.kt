@@ -4,21 +4,34 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.samyak.repostore.data.prefs.DownloadPreferences
+import com.samyak.repostore.data.prefs.DownloadSettingsProvider
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Multi-Part Downloader - Downloads files using parallel connections
+ * Multi-Part Downloader - Downloads files using parallel connections.
  * Uses HTTP Range requests to split downloads into chunks with reliable single-part fallback
+ * and post-download SHA-256 verification whenever an expected digest is provided.
  */
-class MultiPartDownloader(private val context: Context) {
-    
+class MultiPartDownloader @JvmOverloads constructor(
+    private val context: Context,
+    private val downloadSettings: DownloadSettingsProvider = DownloadPreferences.adapterFor(context),
+    private val checksumVerifier: ApkChecksumVerifier = ApkChecksumVerifier(),
+    okHttpClientOverride: OkHttpClient? = null
+) {
+
+    class ChecksumMismatchException(
+        val expectedSha256: String,
+        val actualSha256: String
+    ) : IOException("APK SHA-256 checksum mismatch (expected $expectedSha256, got $actualSha256)")
+
     companion object {
         private const val TAG = "MultiPartDownloader"
         private const val BUFFER_SIZE = 8192
@@ -27,8 +40,8 @@ class MultiPartDownloader(private val context: Context) {
         private const val HEAD_TIMEOUT = 10L
         private const val PROGRESS_UPDATE_INTERVAL_MS = 150L
     }
-    
-    private val okHttpClient = OkHttpClient.Builder()
+
+    private val okHttpClient: OkHttpClient = okHttpClientOverride ?: OkHttpClient.Builder()
         .connectTimeout(CONNECT_TIMEOUT, TimeUnit.SECONDS)
         .readTimeout(READ_TIMEOUT, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -51,10 +64,12 @@ class MultiPartDownloader(private val context: Context) {
         .connectTimeout(HEAD_TIMEOUT, TimeUnit.SECONDS)
         .readTimeout(HEAD_TIMEOUT, TimeUnit.SECONDS)
         .build()
-    
+
+    @Volatile
     private var downloadJob: Job? = null
+    @Volatile
     private var isCancelled = false
-    
+
     /**
      * Download state for progress tracking
      */
@@ -76,28 +91,41 @@ class MultiPartDownloader(private val context: Context) {
      * with fallback to app cache directory.
      */
     fun getDownloadTargetFile(fileName: String): File {
+        val safeName = File(fileName).name.ifBlank { "download.apk" }
         val appDownloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
         if (appDownloadsDir != null && (appDownloadsDir.exists() || appDownloadsDir.mkdirs())) {
-            return File(appDownloadsDir, fileName)
+            return File(appDownloadsDir, safeName)
         }
         val cacheDownloadsDir = File(context.cacheDir, "downloads").apply { mkdirs() }
-        return File(cacheDownloadsDir, fileName)
+        return File(cacheDownloadsDir, safeName)
     }
-    
+
+    suspend fun download(
+        url: String,
+        fileName: String,
+        onStateChanged: (DownloadState) -> Unit
+    ) = download(url = url, fileName = fileName, expectedSha256 = null, onStateChanged = onStateChanged)
+
     /**
-     * Download a file using multi-part downloading with automatic fallback
+     * Download a file using multi-part downloading with automatic fallback and
+     * optional post-download SHA-256 verification.
      * @param url The URL to download from
      * @param fileName The name for the downloaded file
+     * @param expectedSha256 Optional SHA-256 digest ("sha256:<hex>" or "<hex>")
      * @param onStateChanged Callback for download progress updates
      */
     suspend fun download(
         url: String,
         fileName: String,
+        expectedSha256: String? = null,
         onStateChanged: (DownloadState) -> Unit
     ) = withContext(Dispatchers.IO) {
+        downloadJob = coroutineContext[Job]
         isCancelled = false
-        
-        val targetFile = getDownloadTargetFile(fileName)
+
+        val safeFileName = File(fileName).name.ifBlank { "download.apk" }
+        val targetFile = getDownloadTargetFile(safeFileName)
+        targetFile.parentFile?.mkdirs()
         if (targetFile.exists()) {
             targetFile.delete()
         }
@@ -105,14 +133,16 @@ class MultiPartDownloader(private val context: Context) {
         // Also clean legacy public file if present and writable
         try {
             val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val legacyFile = File(publicDir, fileName)
+            val legacyFile = File(publicDir, safeFileName)
             if (legacyFile.exists()) legacyFile.delete()
         } catch (_: Exception) {}
 
+        val settings = downloadSettings.getSettings()
+
         // Determine URLs to try: proxy first (if enabled and differs), then direct URL fallback
         val urlsToTry = mutableListOf<String>()
-        val proxyUrl = DownloadPreferences.transformUrl(context, url)
-        if (proxyUrl != url && !proxyUrl.isNullOrBlank()) {
+        val proxyUrl = downloadSettings.transformUrl(url)
+        if (proxyUrl != url && proxyUrl.isNotBlank()) {
             urlsToTry.add(proxyUrl)
         }
         urlsToTry.add(url)
@@ -123,27 +153,25 @@ class MultiPartDownloader(private val context: Context) {
             if (isCancelled) break
             try {
                 Log.d(TAG, "Starting download attempt: $downloadUrl")
-                
+
                 // Probe file size and Range support
                 val fileInfo = getFileInfo(downloadUrl)
                 val totalSize = fileInfo?.first ?: -1L
                 val supportsRange = fileInfo?.second ?: false
-                
+
                 Log.d(TAG, "Probe result -> size: $totalSize, supportsRange: $supportsRange")
-                
-                val threadCount = if (supportsRange && totalSize > 0 && DownloadPreferences.isMultiPartEnabled(context)) {
-                    DownloadPreferences.getThreadCount(context)
+
+                val threadCount = if (supportsRange && totalSize > 0 && settings.multiPartEnabled) {
+                    settings.threadCount
                 } else {
                     1
                 }
-                
+
                 Log.d(TAG, "Using $threadCount threads for download")
-                
+
                 if (threadCount <= 1 || !supportsRange || totalSize <= 0) {
-                    // Single-threaded download
                     downloadSinglePart(downloadUrl, targetFile, totalSize, onStateChanged)
                 } else {
-                    // Multi-part download with fallback to single-part if chunking fails
                     try {
                         downloadMultiPart(downloadUrl, targetFile, totalSize, threadCount, onStateChanged)
                     } catch (e: Exception) {
@@ -154,7 +182,8 @@ class MultiPartDownloader(private val context: Context) {
                     }
                 }
 
-                // If completed without throwing, return successfully
+                verifyChecksumOrThrow(targetFile, expectedSha256)
+                onStateChanged(DownloadState.Completed(targetFile))
                 return@withContext
             } catch (e: CancellationException) {
                 Log.d(TAG, "Download cancelled")
@@ -167,29 +196,39 @@ class MultiPartDownloader(private val context: Context) {
                 if (targetFile.exists()) targetFile.delete()
             }
         }
-        
+
         Log.e(TAG, "All download attempts failed", lastException)
         onStateChanged(DownloadState.Error(lastException?.message ?: "Download failed"))
     }
-    
-    /**
-     * Get file info via HEAD request, with fallback to Range GET
-     * @return Pair of (fileSize, supportsRange) or null if neither works
-     */
+
+    private suspend fun verifyChecksumOrThrow(targetFile: File, expectedSha256: String?) {
+        when (val result = checksumVerifier.verifyFile(targetFile, expectedSha256)) {
+            is ApkChecksumVerifier.ChecksumVerificationResult.Verified -> {
+                Log.d(TAG, "Verified APK SHA-256: ${result.computedSha256}")
+            }
+            ApkChecksumVerifier.ChecksumVerificationResult.SkippedNoDigest -> Unit
+            is ApkChecksumVerifier.ChecksumVerificationResult.Mismatch -> {
+                throw ChecksumMismatchException(result.expectedSha256, result.actualSha256)
+            }
+            is ApkChecksumVerifier.ChecksumVerificationResult.Error -> {
+                throw IOException(result.message)
+            }
+        }
+    }
+
     private fun getFileInfo(url: String): Pair<Long, Boolean>? {
-        // Step 1: Try lightweight HEAD request
         try {
             val request = Request.Builder()
                 .url(url)
                 .head()
                 .build()
-            
+
             probeClient.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val contentLength = response.header("Content-Length")?.toLongOrNull() ?: -1L
                     val acceptRanges = response.header("Accept-Ranges")
                     val supportsRange = acceptRanges?.equals("bytes", ignoreCase = true) == true
-                    
+
                     if (contentLength > 0) {
                         return Pair(contentLength, supportsRange)
                     }
@@ -199,20 +238,16 @@ class MultiPartDownloader(private val context: Context) {
             Log.w(TAG, "HEAD request failed for $url: ${e.message}")
         }
 
-        // Step 2: Fallback to Range GET request (bytes=0-0)
         return checkRangeWithGet(url)
     }
-    
-    /**
-     * Fallback: Check Range support and size with GET Range request
-     */
+
     private fun checkRangeWithGet(url: String): Pair<Long, Boolean>? {
         return try {
             val request = Request.Builder()
                 .url(url)
                 .header("Range", "bytes=0-0")
                 .build()
-            
+
             probeClient.newCall(request).execute().use { response ->
                 if (response.code == 206) {
                     val contentRange = response.header("Content-Range")
@@ -234,10 +269,7 @@ class MultiPartDownloader(private val context: Context) {
             null
         }
     }
-    
-    /**
-     * Single-threaded download
-     */
+
     private suspend fun downloadSinglePart(
         url: String,
         targetFile: File,
@@ -247,57 +279,55 @@ class MultiPartDownloader(private val context: Context) {
         val request = Request.Builder()
             .url(url)
             .build()
-        
+
         val startTime = System.currentTimeMillis()
         var lastUpdateTime = 0L
         var downloadedBytes = 0L
-        
+
         okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw Exception("HTTP ${response.code}: ${response.message}")
             }
-            
-            val actualTotalSize = response.body?.contentLength()?.takeIf { it > 0 } ?: totalSize
-            
-            response.body?.byteStream()?.use { input ->
+
+            val body = response.body ?: throw IOException("Empty response body")
+            val actualTotalSize = body.contentLength().takeIf { it > 0 } ?: totalSize
+
+            body.byteStream().use { input ->
                 FileOutputStream(targetFile).use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
                     var bytesRead: Int
-                    
+
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         if (isCancelled) throw CancellationException()
-                        
+
                         output.write(buffer, 0, bytesRead)
                         downloadedBytes += bytesRead
-                        
+
                         val now = System.currentTimeMillis()
                         if (now - lastUpdateTime >= PROGRESS_UPDATE_INTERVAL_MS) {
                             lastUpdateTime = now
                             val progress = if (actualTotalSize > 0) {
                                 ((downloadedBytes * 100) / actualTotalSize).toInt().coerceIn(0, 100)
                             } else 0
-                            
+
                             val elapsedSec = (now - startTime) / 1000.0
                             val speed = if (elapsedSec > 0) (downloadedBytes / elapsedSec).toLong() else 0L
-                            
-                            onStateChanged(DownloadState.Downloading(
-                                progress = progress,
-                                downloadedBytes = downloadedBytes,
-                                totalBytes = actualTotalSize,
-                                speedBytesPerSec = speed
-                            ))
+
+                            onStateChanged(
+                                DownloadState.Downloading(
+                                    progress = progress,
+                                    downloadedBytes = downloadedBytes,
+                                    totalBytes = actualTotalSize,
+                                    speedBytesPerSec = speed
+                                )
+                            )
                         }
                     }
                 }
             }
         }
-        
-        onStateChanged(DownloadState.Completed(targetFile))
     }
-    
-    /**
-     * Multi-part parallel download
-     */
+
     private suspend fun downloadMultiPart(
         url: String,
         targetFile: File,
@@ -305,60 +335,51 @@ class MultiPartDownloader(private val context: Context) {
         threadCount: Int,
         onStateChanged: (DownloadState) -> Unit
     ) = withContext(Dispatchers.IO) {
-        // Create target file with full size
         RandomAccessFile(targetFile, "rw").use { raf ->
             raf.setLength(totalSize)
         }
-        
-        // Calculate chunk sizes
+
         val chunkSize = totalSize / threadCount
         val chunks = mutableListOf<LongRange>()
-        
+
         for (i in 0 until threadCount) {
             val start = i * chunkSize
             val end = if (i == threadCount - 1) totalSize - 1 else (start + chunkSize - 1)
             chunks.add(start..end)
         }
-        
-        // Track progress
+
         val downloadedBytes = AtomicLong(0)
         val startTime = System.currentTimeMillis()
-        var lastUpdateTime = 0L
-        
-        // Download all chunks in parallel
+        val lastUpdateTime = AtomicLong(0L)
+
         val jobs = chunks.mapIndexed { index, range ->
             async {
                 downloadChunk(url, targetFile, range, index) { bytesChunkRead ->
                     val totalDownloaded = downloadedBytes.addAndGet(bytesChunkRead)
-                    
+
                     val now = System.currentTimeMillis()
-                    if (now - lastUpdateTime >= PROGRESS_UPDATE_INTERVAL_MS) {
-                        lastUpdateTime = now
+                    val previous = lastUpdateTime.get()
+                    if (now - previous >= PROGRESS_UPDATE_INTERVAL_MS && lastUpdateTime.compareAndSet(previous, now)) {
                         val progress = ((totalDownloaded * 100) / totalSize).toInt().coerceIn(0, 100)
                         val elapsedSec = (now - startTime) / 1000.0
                         val speed = if (elapsedSec > 0) (totalDownloaded / elapsedSec).toLong() else 0L
-                        
-                        onStateChanged(DownloadState.Downloading(
-                            progress = progress,
-                            downloadedBytes = totalDownloaded,
-                            totalBytes = totalSize,
-                            speedBytesPerSec = speed
-                        ))
+
+                        onStateChanged(
+                            DownloadState.Downloading(
+                                progress = progress,
+                                downloadedBytes = totalDownloaded,
+                                totalBytes = totalSize,
+                                speedBytesPerSec = speed
+                            )
+                        )
                     }
                 }
             }
         }
-        
-        // Wait for all chunks to complete
+
         jobs.awaitAll()
-        
-        // Final progress update
-        onStateChanged(DownloadState.Completed(targetFile))
     }
-    
-    /**
-     * Download a single chunk using Range header
-     */
+
     private suspend fun downloadChunk(
         url: String,
         targetFile: File,
@@ -370,39 +391,45 @@ class MultiPartDownloader(private val context: Context) {
             .url(url)
             .header("Range", "bytes=${range.first}-${range.last}")
             .build()
-        
+
         Log.d(TAG, "Chunk $chunkIndex: bytes=${range.first}-${range.last}")
-        
+
+        val expectedLength = (range.last - range.first) + 1L
         okHttpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful && response.code != 206) {
-                throw Exception("Chunk $chunkIndex failed: HTTP ${response.code}")
+            if (response.code != 206) {
+                throw IOException("Chunk $chunkIndex expected HTTP 206 Partial Content, got ${response.code}")
             }
-            
-            response.body?.byteStream()?.use { input ->
+
+            val body = response.body ?: throw IOException("Chunk $chunkIndex empty response body")
+            body.byteStream().use { input ->
                 RandomAccessFile(targetFile, "rw").use { raf ->
                     raf.seek(range.first)
-                    
+
                     val buffer = ByteArray(BUFFER_SIZE)
                     var bytesRead: Int
                     var totalChunkBytes = 0L
-                    
+
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         if (isCancelled) throw CancellationException()
-                        
-                        raf.write(buffer, 0, bytesRead)
-                        totalChunkBytes += bytesRead
-                        onProgress(bytesRead.toLong())
+
+                        val remaining = expectedLength - totalChunkBytes
+                        if (remaining <= 0L) break
+                        val bytesToWrite = minOf(bytesRead.toLong(), remaining).toInt()
+                        raf.write(buffer, 0, bytesToWrite)
+                        totalChunkBytes += bytesToWrite
+                        onProgress(bytesToWrite.toLong())
                     }
-                    
+
+                    if (totalChunkBytes != expectedLength) {
+                        throw IOException("Chunk $chunkIndex incomplete: $totalChunkBytes/$expectedLength bytes")
+                    }
+
                     Log.d(TAG, "Chunk $chunkIndex completed: $totalChunkBytes bytes")
                 }
             }
         }
     }
-    
-    /**
-     * Cancel ongoing download
-     */
+
     fun cancel() {
         isCancelled = true
         downloadJob?.cancel()

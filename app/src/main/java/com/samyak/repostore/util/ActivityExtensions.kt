@@ -1,7 +1,13 @@
 package com.samyak.repostore.util
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.widget.Toast
+import com.samyak.repostore.R
 
 /**
  * Applies activity transition animations cleanly across Android versions.
@@ -19,6 +25,36 @@ fun Activity.applyTransition(isOpen: Boolean, enterAnim: Int, exitAnim: Int) {
     } else {
         @Suppress("DEPRECATION")
         overridePendingTransition(enterAnim, exitAnim)
+    }
+}
+
+/**
+ * Safely opens an external HTTP/HTTPS URL without crashing if no browser is
+ * installed or the URL is malformed.
+ */
+fun Context.openExternalUrl(rawUrl: String): Boolean {
+    val trimmed = rawUrl.trim()
+    if (trimmed.isEmpty()) return false
+    val normalized = if (trimmed.startsWith("http://", ignoreCase = true) ||
+        trimmed.startsWith("https://", ignoreCase = true)
+    ) {
+        trimmed
+    } else {
+        "https://$trimmed"
+    }
+    return try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(normalized))
+        if (this !is Activity) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+        true
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(this, R.string.cannot_open_app, Toast.LENGTH_SHORT).show()
+        false
+    } catch (_: Exception) {
+        Toast.makeText(this, R.string.cannot_open_app, Toast.LENGTH_SHORT).show()
+        false
     }
 }
 

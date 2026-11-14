@@ -50,10 +50,11 @@ class UpdateCheckWorker(
 
         ensureChannel(context)
 
-        val installer = AppInstaller.getInstance(context)
-        val repository = app.repository
-        val dao = app.installedAppMappingDao
-        val notifiedPrefs = context.getSharedPreferences(PREFS_NOTIFIED, Context.MODE_PRIVATE)
+        val container = app.container
+        val installer = container.appInstaller
+        val repository = container.repository
+        val dao = container.installedAppMappingDao
+        val notifiedStore = container.updateNotificationStore
 
         val mappings = try {
             dao.getAllMappingsFlow().first()
@@ -68,8 +69,7 @@ class UpdateCheckWorker(
             try {
                 val packageName = mapping.packageName
                 if (!installer.isInstalled(packageName)) {
-                    // App was uninstalled outside RepoStore — clear any stale notified state.
-                    notifiedPrefs.edit().remove(packageName).apply()
+                    notifiedStore.clearPackage(packageName)
                     continue
                 }
 
@@ -81,7 +81,6 @@ class UpdateCheckWorker(
                 if (release.draft) continue
                 val latestTag = release.tagName.takeIf { it.isNotBlank() } ?: continue
 
-                // Only notify for releases that actually ship an installable artifact.
                 val hasInstallable = release.assets.any { asset ->
                     val n = asset.name.lowercase()
                     n.endsWith(".apk") || n.endsWith(".aab") || n.endsWith(".xapk") || n.endsWith(".apks")
@@ -90,16 +89,14 @@ class UpdateCheckWorker(
 
                 if (!VersionComparator.isNewerVersion(installedVersion, latestTag)) continue
 
-                // De-dupe: don't re-notify for a tag we already told the user about.
-                if (notifiedPrefs.getString(packageName, null) == latestTag) continue
+                if (notifiedStore.getLastNotifiedTag(packageName) == latestTag) continue
 
                 val appLabel = installer.getAppLabel(packageName) ?: mapping.repoName
                 notifyUpdate(context, mapping.ownerName, mapping.repoName, appLabel, installedVersion, latestTag)
-                notifiedPrefs.edit().putString(packageName, latestTag).apply()
+                notifiedStore.setLastNotifiedTag(packageName, latestTag)
                 updatesFound++
             } catch (e: Exception) {
                 Log.e(TAG, "Update check failed for ${mapping.ownerName}/${mapping.repoName}", e)
-                // Continue with the next app rather than failing the whole run.
             }
         }
 

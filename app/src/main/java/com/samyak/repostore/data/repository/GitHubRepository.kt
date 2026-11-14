@@ -1,5 +1,6 @@
 package com.samyak.repostore.data.repository
 
+import com.samyak.repostore.data.api.GitHubApi
 import com.samyak.repostore.data.api.RetrofitClient
 import android.util.Log
 import com.samyak.repostore.data.db.CachedRepoDao
@@ -22,14 +23,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 class GitHubRepository(
     private val repoDao: RepoDao,
-    private val cachedRepoDao: CachedRepoDao? = null
+    private val cachedRepoDao: CachedRepoDao? = null,
+    private val apiProvider: () -> GitHubApi = { RetrofitClient.api }
 ) {
 
     companion object {
         private const val TAG = "GitHubRepository"
     }
 
-    private val api = RetrofitClient.api
+    private val api get() = apiProvider()
 
     // In-memory cache. These are read/written from many parallel IO coroutines
     // (e.g. filterReposWithApk fans out with async{}), so they must be thread-safe.
@@ -208,20 +210,34 @@ class GitHubRepository(
 
     suspend fun searchApps(query: String, page: Int = 1): Result<List<AppItem>> = withContext(Dispatchers.IO) {
         try {
-            // Search in name, description, and readme
-            val searchQuery = "$query in:name,description topic:android"
-//            val searchQuery = "$query in:name,description,readme"
-            val response = api.searchRepositories(query = searchQuery, sort = "stars", perPage = 40, page = page)
+            val primaryQuery = "$query in:name,description topic:android"
+            val primaryResponse = api.searchRepositories(query = primaryQuery, sort = "stars", perPage = 40, page = page)
 
-            // Filter to only repos with APK releases
-            val appItems = filterReposWithApk(response.items)
-
-            if (appItems.isNotEmpty()) {
-                repoDao.insertRepos(response.items)
-                cacheAppItems(appItems)
+            val seenIds = LinkedHashSet<Long>()
+            val mergedRepos = mutableListOf<GitHubRepo>()
+            for (repo in primaryResponse.items) {
+                if (seenIds.add(repo.id)) mergedRepos.add(repo)
             }
-            
-            Result.success(appItems)
+
+            // Broaden automatically on page 1 if topic:android returns too few results
+            if (query.isNotBlank() && page == 1 && mergedRepos.size < 5) {
+                val broadQuery = "$query in:name,description,readme"
+                val broadResponse = api.searchRepositories(query = broadQuery, sort = "stars", perPage = 40, page = page)
+                for (repo in broadResponse.items) {
+                    if (seenIds.add(repo.id)) mergedRepos.add(repo)
+                }
+            }
+
+            // Enrich & rank with Android/APK priority while keeping non-APK matches visible below
+            val appItems = enrichAndBuildSearchItems(mergedRepos, requireApkOnly = false, query = query)
+            val rankedItems = rankByRelevance(appItems, query)
+
+            if (rankedItems.isNotEmpty()) {
+                repoDao.insertRepos(mergedRepos)
+                cacheAppItems(rankedItems)
+            }
+
+            Result.success(rankedItems)
         } catch (e: Exception) {
             val cached = searchCachedAppItems(query)
             if (cached.isNotEmpty()) {
@@ -235,72 +251,115 @@ class GitHubRepository(
     }
 
     /**
-     * Advanced search with filters for language, stars, sort order, etc.
-     * @param query User's search term
-     * @param filters Advanced search filters
-     * @param page Page number for pagination
-     * @return List of matching apps with APK releases
+     * Advanced search with Android-first cascading fallback:
+     * 1. When [SearchFilters.androidOnly] is true, searches `topic:android` first.
+     * 2. If page 1 yields < 5 results (or [SearchFilters.androidOnly] is false), executes a broader
+     *    query without `topic:android` and including README matches (`in:name,description,readme`).
+     * 3. If both still yield 0 results for a plain keyword query on page 1, runs a bare-term rescue query.
+     * Results always prioritize Android apps and APK releases at the top while keeping other matches below.
      */
     suspend fun advancedSearchApps(
-        query: String, 
+        query: String,
         filters: SearchFilters = SearchFilters.DEFAULT,
         page: Int = 1
     ): Result<SearchResult> = withContext(Dispatchers.IO) {
         try {
-            val searchQuery = filters.buildQuery(query)
-            
-            // For "Best Match", pass null to use GitHub's relevance-based sorting
-            // Otherwise, use the specified sort option
             val sortBy = when (filters.sortBy) {
                 SortOption.BEST_MATCH -> if (query.isNotBlank()) null else "stars"
                 else -> filters.sortBy.apiValue.ifEmpty { null }
             }
             val order = "desc"
-            
-            val response = api.searchRepositories(
-                query = searchQuery,
-                sort = sortBy,
-                order = order,
-                perPage = 40,
-                page = page
+
+            val seenIds = LinkedHashSet<Long>()
+            val mergedRepos = mutableListOf<GitHubRepo>()
+            var totalCount = 0
+            var hasNextPage = false
+
+            if (filters.androidOnly) {
+                val primaryResponse = api.searchRepositories(
+                    query = filters.buildQuery(query),
+                    sort = sortBy,
+                    order = order,
+                    perPage = 40,
+                    page = page
+                )
+                totalCount = primaryResponse.totalCount
+                hasNextPage = primaryResponse.items.size >= 40
+                for (repo in primaryResponse.items) {
+                    if (seenIds.add(repo.id)) mergedRepos.add(repo)
+                }
+            }
+
+            // Stage 2: Broader search without topic:android (with README search)
+            val shouldRunBroadSearch = !filters.androidOnly ||
+                (query.isNotBlank() && page == 1 && mergedRepos.size < 5)
+
+            if (shouldRunBroadSearch) {
+                val broadQuery = filters.buildBroadQuery(
+                    userQuery = query,
+                    includeReadme = if (filters.androidOnly) true else filters.searchInReadme
+                )
+                val broadResponse = api.searchRepositories(
+                    query = broadQuery,
+                    sort = sortBy,
+                    order = order,
+                    perPage = 40,
+                    page = page
+                )
+                for (repo in broadResponse.items) {
+                    if (seenIds.add(repo.id)) mergedRepos.add(repo)
+                }
+                if (!filters.androidOnly) {
+                    totalCount = broadResponse.totalCount
+                    hasNextPage = broadResponse.items.size >= 40
+                } else {
+                    totalCount = maxOf(totalCount, broadResponse.totalCount, mergedRepos.size)
+                    hasNextPage = hasNextPage || broadResponse.items.size >= 40
+                }
+            }
+
+            // Stage 3: Bare-term rescue query if qualifiers returned 0 results for plain text
+            val trimmed = query.trim()
+            if (mergedRepos.isEmpty() && page == 1 && trimmed.isNotBlank() && !trimmed.contains(':')) {
+                val bareQuery = filters.buildBareFallbackQuery(trimmed)
+                val bareResponse = api.searchRepositories(
+                    query = bareQuery,
+                    sort = sortBy,
+                    order = order,
+                    perPage = 40,
+                    page = 1
+                )
+                for (repo in bareResponse.items) {
+                    if (seenIds.add(repo.id)) mergedRepos.add(repo)
+                }
+                totalCount = maxOf(totalCount, bareResponse.totalCount, mergedRepos.size)
+                hasNextPage = hasNextPage || bareResponse.items.size >= 40
+            }
+
+            if (mergedRepos.isNotEmpty()) {
+                repoDao.insertRepos(mergedRepos)
+            }
+
+            val requireApkOnly = filters.hasReleases || filters.hasApk
+            val appItems = enrichAndBuildSearchItems(
+                repos = mergedRepos,
+                requireApkOnly = requireApkOnly,
+                query = query
             )
 
-            // Always cache the repos for future searches
-            if (response.items.isNotEmpty()) {
-                repoDao.insertRepos(response.items)
-            }
-
-            // Filter to only repos with APK releases if required
-            val appItems = if (filters.hasReleases || filters.hasApk) {
-                val filtered = filterReposWithApk(response.items)
-                // If APK filtering returns empty but we have results, 
-                // fall back to showing unfiltered results so user sees something
-                if (filtered.isEmpty() && response.items.isNotEmpty()) {
-                    response.items.map { repo ->
-                        val tag = determineTag(repo, null)
-                        AppItem(repo, null, tag, IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language))
-                    }
-                } else {
-                    filtered
-                }
-            } else {
-                response.items.map { repo ->
-                    val tag = determineTag(repo, null)
-                    AppItem(repo, null, tag, IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language))
-                }
-            }
-            
-            // Apply Play Store-like relevance scoring and sort
+            // Apply Play Store-like relevance scoring (Android & APK prioritized, others below)
             val rankedItems = rankByRelevance(appItems, query)
             cacheAppItems(rankedItems)
-            
-            Result.success(SearchResult(
-                items = rankedItems,
-                totalCount = response.totalCount,
-                hasNextPage = response.items.size >= 40,
-                query = query,
-                filters = filters
-            ))
+
+            Result.success(
+                SearchResult(
+                    items = rankedItems,
+                    totalCount = totalCount,
+                    hasNextPage = hasNextPage,
+                    query = query,
+                    filters = filters
+                )
+            )
         } catch (e: HttpException) {
             handleHttpException(e)
         } catch (e: Exception) {
@@ -309,92 +368,160 @@ class GitHubRepository(
     }
 
     /**
-     * Fetch a single app by its GitHub URL
+     * Build AppItems for search results, resolving cached releases and inspecting top uncached candidates
+     * concurrently so APK-ready apps rank above source-only repos without exhausting API rate limits.
+     */
+    private suspend fun enrichAndBuildSearchItems(
+        repos: List<GitHubRepo>,
+        requireApkOnly: Boolean,
+        query: String
+    ): List<AppItem> = coroutineScope {
+        if (repos.isEmpty()) return@coroutineScope emptyList()
+
+        if (requireApkOnly) {
+            return@coroutineScope filterReposWithApk(repos)
+        }
+
+        // Probe release APK info for already-cached repos + up to top 8 name/Android candidates
+        val queryLower = query.trim().lowercase()
+        val candidateIds = repos
+            .sortedByDescending { repo ->
+                var hint = 0
+                val nameLower = repo.name.lowercase()
+                if (queryLower.isNotBlank() && nameLower.contains(queryLower)) hint += 50
+                if (hasAndroidEcosystemSignal(repo)) hint += 25
+                hint
+            }
+            .take(8)
+            .map { it.id }
+            .toSet()
+
+        repos.map { repo ->
+            async {
+                val cacheKey = "${repo.owner.login}/${repo.name}"
+                val release = releaseCache[cacheKey]?.second ?: if (repo.id in candidateIds) {
+                    try {
+                        repoHasApk(repo.owner.login, repo.name)
+                        releaseCache[cacheKey]?.second
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
+                val tag = determineTag(repo, release)
+                AppItem(
+                    repo = repo,
+                    latestRelease = release,
+                    tag = tag,
+                    iconUrls = IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language)
+                )
+            }
+        }.awaitAll()
+    }
+
+    /**
+     * Fetch a single app by its GitHub URL or "owner/repo" shorthand reference.
      */
     suspend fun getAppByUrl(url: String): Result<AppItem> = withContext(Dispatchers.IO) {
         try {
-            val repoInfo = GitHubUrlParser.parse(url) 
+            val repoInfo = GitHubUrlParser.parseOwnerRepo(url)
                 ?: return@withContext Result.failure(Exception("Invalid GitHub URL"))
-            
+
             val repoResult = getRepoDetails(repoInfo.owner, repoInfo.name)
             val repo = repoResult.getOrThrow()
-            
+
             val releaseResult = getLatestRelease(repo.owner.login, repo.name)
             val release = releaseResult.getOrNull()
-            
+
             val tag = determineTag(repo, release)
             Result.success(AppItem(repo, release, tag, IconResolver.resolve(repo.owner.login, repo.name, repo.defaultBranch, repo.language)))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    
+
+    private fun hasAndroidEcosystemSignal(repo: GitHubRepo): Boolean {
+        val topics = repo.topics.orEmpty().map { it.lowercase() }
+        if (topics.any {
+                it.contains("android") ||
+                    it == "apk" ||
+                    it.contains("jetpack-compose") ||
+                    it == "kmp" ||
+                    it == "kotlin-multiplatform" ||
+                    it == "flutter"
+            }
+        ) {
+            return true
+        }
+        val lang = repo.language?.lowercase()
+        if (lang == "kotlin" || lang == "java" || lang == "dart") {
+            return true
+        }
+        val desc = repo.description?.lowercase().orEmpty()
+        return desc.contains("android") || desc.contains("apk")
+    }
+
     /**
-     * Rank search results by relevance score (Play Store-like algorithm)
-     * Scoring factors:
-     * - Exact name match: +100 points
-     * - Name starts with query: +50 points
-     * - Name contains query: +25 points
-     * - Description contains query: +10 points
-     * - Star count bonus: log10(stars) * 5 points
-     * - Android topic bonus: +15 points
-     * - Has releases (APK): +20 points
+     * Rank search results by relevance score (Play Store-like algorithm),
+     * prioritizing exact/partial name matches, installable APK releases, and Android ecosystem repos
+     * while preserving non-APK / non-tagged repos below.
      */
     private fun rankByRelevance(items: List<AppItem>, query: String): List<AppItem> {
         if (query.isBlank()) return items
-        
+
         val queryLower = query.lowercase().trim()
         val queryWords = queryLower.split(" ").filter { it.isNotBlank() }
-        
+
         return items.sortedByDescending { item ->
             var score = 0.0
             val repo = item.repo
             val nameLower = repo.name.lowercase()
+            val fullNameLower = repo.fullName.lowercase()
             val descLower = repo.description?.lowercase() ?: ""
-            
-            // Exact name match (highest priority)
-            if (nameLower == queryLower) {
-                score += 100
-            }
-            // Name starts with query
-            else if (nameLower.startsWith(queryLower)) {
-                score += 50
-            }
-            // Name contains query as whole word
-            else if (nameLower.contains(queryLower)) {
+
+            // Name & fullName relevance
+            if (nameLower == queryLower || fullNameLower == queryLower) {
+                score += 140
+            } else if (nameLower.startsWith(queryLower)) {
+                score += 70
+            } else if (nameLower.contains(queryLower)) {
+                score += 35
+            } else if (queryWords.all { word -> nameLower.contains(word) }) {
                 score += 25
             }
-            // Name contains all query words
-            else if (queryWords.all { word -> nameLower.contains(word) }) {
-                score += 20
-            }
-            
-            // Description contains query
+
+            // Description relevance
             if (descLower.contains(queryLower)) {
-                score += 10
+                score += 15
+            } else if (queryWords.all { word -> descLower.contains(word) }) {
+                score += 8
             }
-            // Description contains all query words
-            else if (queryWords.all { word -> descLower.contains(word) }) {
-                score += 5
+
+            // Prioritize installable APK/AAB releases first, other releases next
+            if (hasInstallableAsset(item.latestRelease)) {
+                score += 50
+            } else if (item.latestRelease != null) {
+                score += 15
             }
-            
-            // Star count bonus (logarithmic to prevent mega-repos from dominating)
-            if (repo.stars > 0) {
-                score += kotlin.math.log10(repo.stars.toDouble()) * 5
+
+            // Prioritize Android ecosystem repositories (topic / language / Android mention)
+            if (hasAndroidEcosystemSignal(repo)) {
+                score += 30
             }
-            
-            // Android topic bonus
+
+            // Explicit android topic bonus
             repo.topics?.let { topics ->
                 if (topics.any { it.lowercase().contains("android") }) {
                     score += 15
                 }
             }
-            
-            // Has releases (APK) bonus
-            if (item.latestRelease != null) {
-                score += 20
+
+            // Star count bonus (logarithmic to prevent mega-repos from burying exact app matches)
+            if (repo.stars > 0) {
+                score += kotlin.math.log10(repo.stars.toDouble()) * 5
             }
-            
+
             score
         }
     }
@@ -760,8 +887,9 @@ class GitHubRepository(
     suspend fun getReadme(owner: String, repoName: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             val response = api.getReadme(owner, repoName)
-            val decoded = if (response.encoding == "base64") {
-                String(android.util.Base64.decode(response.content.replace("\n", ""), android.util.Base64.DEFAULT))
+            val decoded = if (response.encoding.equals("base64", ignoreCase = true)) {
+                val cleaned = response.content.replace(Regex("\\s"), "")
+                String(android.util.Base64.decode(cleaned, android.util.Base64.DEFAULT), Charsets.UTF_8)
             } else {
                 response.content
             }
@@ -883,7 +1011,7 @@ class GitHubRepository(
             // Only if no images found in README, try one folder
             if (screenshots.isEmpty()) {
                 try {
-                    val rootContents = api.getRootContents(owner, repoName, branch)
+                    val rootContents = api.getRootContents(owner, repoName, ref = branch)
                     val screenshotFolder = rootContents.find { content ->
                         content.type == "dir" && screenshotFolders.any { folder ->
                             content.name.equals(folder, ignoreCase = true)
@@ -911,7 +1039,7 @@ class GitHubRepository(
 
     private suspend fun getImagesFromFolder(owner: String, repoName: String, path: String, branch: String): List<String> {
         return try {
-            val contents = api.getContents(owner, repoName, path, branch)
+            val contents = api.getContents(owner, repoName, path = path, ref = branch)
             contents.filter { content ->
                 content.type == "file" && imageExtensions.any { ext ->
                     content.name.lowercase().endsWith(ext)
@@ -956,6 +1084,7 @@ class GitHubRepository(
 
     private fun <T> handleHttpException(e: HttpException): Result<T> {
         val message = when (e.code()) {
+            401 -> "GitHub session expired or unauthorized. Please sign in again."
             429 -> "Rate limit exceeded. Please wait a few minutes or add a GitHub token in settings."
             403 -> "API rate limit reached. Add a GitHub token to increase limit (60 → 5000 requests/hour)."
             404 -> "Not found"

@@ -21,6 +21,7 @@
     <string name="sort_by">Sort by</string>
     <string name="updated">Updated</string>
     <string name="has_apk">Has APK</string>
+    <string name="android_only">Android only</string>
     <string name="reset">Reset</string>
     <string name="results_count">%d results</string>
     <string name="any_language">Any language</string>
@@ -158,6 +159,8 @@
     <string name="storage_error">Storage error occurred</string>
     <string name="insufficient_storage">Not enough storage space</string>
     <string name="verification_failed">File verification failed</string>
+    <string name="verifying_checksum">Verifying APK integrity…</string>
+    <string name="verification_mismatch">Security check failed: downloaded APK SHA-256 checksum does not match the GitHub release digest.</string>
     <string name="download_timeout">Download timed out</string>
     <string name="retry">Retry</string>
     <string name="cancel">Cancel</string>
@@ -187,12 +190,19 @@
     <!-- GitHub Sign In -->
     <string name="github_sign_in">Sign in with GitHub</string>
     <string name="sign_in_to_increase_limit">Sign in to increase API rate limit</string>
+    <string name="sign_in_session_reset_subtitle">Session reset — tap to sign in with GitHub</string>
     <string name="connecting_to_github">Connecting to GitHub…</string>
     <string name="enter_code_on_github">Enter this code on GitHub</string>
-    <string name="code_instructions">Open GitHub in your browser and enter the code below to sign in</string>
+    <string name="code_instructions">Open GitHub in your browser with your existing GitHub account and enter the code below</string>
+    <string name="existing_account_hint">Tip: If GitHub\'s Authorize button appears greyed out, wait ~3 seconds for GitHub\'s security delay before tapping it.</string>
+    <string name="reauth_reset_notice_reinstall">Your previous GitHub session could not be restored after reinstalling or restoring app data. Sign in below with your existing GitHub account to reconnect.</string>
+    <string name="reauth_reset_notice_revoked">Your GitHub session expired or was revoked. Sign in below with your existing GitHub account to reconnect.</string>
     <string name="copy_code">Copy Code</string>
     <string name="code_copied">Code copied to clipboard</string>
+    <string name="code_copied_open_hint">Code copied! Paste it on GitHub (wait ~3s if Authorize is disabled).</string>
     <string name="open_github">Open GitHub</string>
+    <string name="get_new_code">Get New Code</string>
+    <string name="use_token_instead">Use Personal Access Token</string>
     <string name="waiting_for_authorization">Waiting for authorization…</string>
     <string name="signed_in_successfully">Signed in successfully!</string>
     <string name="signed_in">Signed in</string>
@@ -203,6 +213,9 @@
     <string name="signed_out">Signed out</string>
     <string name="failed_to_get_code">Failed to get authorization code</string>
     <string name="auth_expired">Authorization expired. Please try again.</string>
+    <string name="auth_denied">Authorization was denied or cancelled on GitHub. Please try again.</string>
+    <string name="token_save_failed">Could not save token securely. Please try again.</string>
+    <string name="invalid_token_format">Please enter a valid GitHub token without spaces.</string>
     <string name="unknown_error">Unknown error occurred</string>
     <string name="something_went_wrong">Something went wrong</string>
     <string name="user">\@user</string>

@@ -96,6 +96,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:paddingHorizontal="16dp"
+            app:chipSpacingHorizontal="8dp"
             app:singleLine="true">
 
             <!-- Sort Chip -->
@@ -142,6 +143,18 @@
                 app:chipIcon="@drawable/ic_update"
                 app:chipIconVisible="true" />
 
+            <!-- Android Only Chip -->
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_android_only"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checkable="true"
+                android:checked="true"
+                android:contentDescription="@string/android_only"
+                android:text="@string/android_only"
+                app:checkedIconVisible="true" />
+
             <!-- Has APK Chip -->
             <com.google.android.material.chip.Chip
                 android:id="@+id/chip_has_apk"
@@ -149,7 +162,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:checkable="true"
-                android:checked="true"
+                android:checked="false"
+                android:contentDescription="@string/has_apk"
                 android:text="@string/has_apk"
                 app:checkedIconVisible="true" />
 

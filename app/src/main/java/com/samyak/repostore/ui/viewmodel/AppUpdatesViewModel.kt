@@ -69,12 +69,18 @@ class AppUpdatesViewModel(
         viewModelScope.launch {
             _uiState.value = AppUpdatesUiState.Loading
             try {
-                val updates = loadUpdates()
-                _uiState.value = if (updates.isEmpty()) {
-                    AppUpdatesUiState.Empty
-                } else {
-                    AppUpdatesUiState.Success(updates)
-                }
+                loadUpdatesResult().fold(
+                    onSuccess = { updates ->
+                        _uiState.value = if (updates.isEmpty()) {
+                            AppUpdatesUiState.Empty
+                        } else {
+                            AppUpdatesUiState.Success(updates)
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.value = AppUpdatesUiState.Error(error.message ?: "Unknown error")
+                    }
+                )
             } catch (e: Exception) {
                 _uiState.value = AppUpdatesUiState.Error(e.message ?: "Unknown error")
             }
@@ -87,7 +93,11 @@ class AppUpdatesViewModel(
         val packageName: String
     )
 
-    internal suspend fun loadUpdates(): List<AppUpdate> = withContext(Dispatchers.IO) {
+    internal suspend fun loadUpdates(): List<AppUpdate> {
+        return loadUpdatesResult().getOrDefault(emptyList())
+    }
+
+    internal suspend fun loadUpdatesResult(): Result<List<AppUpdate>> = withContext(Dispatchers.IO) {
         val candidates = mutableMapOf<String, Candidate>()
 
         // 1. Existing tracked mappings (apps installed through RepoStore or previously detected)
@@ -156,10 +166,14 @@ class AppUpdatesViewModel(
             } catch (_: Exception) {}
         }
 
+        if (candidates.isEmpty()) {
+            return@withContext Result.success(emptyList())
+        }
+
         // Controlled concurrency to prevent hitting GitHub secondary rate limits
         val semaphore = Semaphore(3)
 
-        candidates.values.map { candidate ->
+        val checkOutcomes = candidates.values.map { candidate ->
             async {
                 semaphore.withPermit {
                     try {
@@ -169,17 +183,24 @@ class AppUpdatesViewModel(
                         val installedVersion = appInstaller.getInstalledVersion(packageName)
                             ?: return@withPermit null
 
-                        val release = repository.getLatestRelease(
+                        val releaseResult = repository.getLatestRelease(
                             candidate.owner,
                             candidate.repo,
                             forceRefresh = true
-                        ).getOrNull() ?: return@withPermit null
+                        )
+                        val release = releaseResult.getOrNull()
+                        if (release == null) {
+                            return@withPermit Result.failure<AppUpdate?>(
+                                releaseResult.exceptionOrNull() ?: Exception("Failed to check release")
+                            )
+                        }
 
-                        if (release.draft) return@withPermit null
-                        val latestTag = release.tagName.takeIf { it.isNotBlank() } ?: return@withPermit null
+                        if (release.draft) return@withPermit Result.success(null)
+                        val latestTag = release.tagName.takeIf { it.isNotBlank() }
+                            ?: return@withPermit Result.success(null)
 
                         if (!VersionComparator.isNewerVersion(installedVersion, latestTag)) {
-                            return@withPermit null
+                            return@withPermit Result.success(null)
                         }
 
                         val asset = when (val selection = ApkArchitectureHelper.selectBestApk(release.assets)) {
@@ -187,26 +208,39 @@ class AppUpdatesViewModel(
                             is ApkSelectionResult.ExactMatch -> selection.asset
                             is ApkSelectionResult.Universal -> selection.asset
                             is ApkSelectionResult.Fallback -> selection.asset
-                            is ApkSelectionResult.NoApkFound -> return@withPermit null
+                            is ApkSelectionResult.NoApkFound -> return@withPermit Result.success(null)
                         }
 
                         val appName = appInstaller.getAppLabel(packageName) ?: candidate.repo
 
-                        AppUpdate(
-                            owner = candidate.owner,
-                            repo = candidate.repo,
-                            packageName = packageName,
-                            appName = appName,
-                            installedVersion = installedVersion,
-                            latestVersion = latestTag,
-                            asset = asset
+                        Result.success(
+                            AppUpdate(
+                                owner = candidate.owner,
+                                repo = candidate.repo,
+                                packageName = packageName,
+                                appName = appName,
+                                installedVersion = installedVersion,
+                                latestVersion = latestTag,
+                                asset = asset
+                            )
                         )
                     } catch (e: Exception) {
-                        null
+                        Result.failure<AppUpdate?>(e)
                     }
                 }
             }
-        }.awaitAll().filterNotNull().sortedBy { it.appName.lowercase() }
+        }.awaitAll().filterNotNull()
+
+        val updates = checkOutcomes
+            .mapNotNull { it.getOrNull() }
+            .sortedBy { it.appName.lowercase() }
+
+        if (updates.isEmpty() && checkOutcomes.isNotEmpty() && checkOutcomes.all { it.isFailure }) {
+            val firstError = checkOutcomes.firstNotNullOfOrNull { it.exceptionOrNull() }
+            return@withContext Result.failure(firstError ?: Exception("Failed to check for updates"))
+        }
+
+        Result.success(updates)
     }
 }
 
