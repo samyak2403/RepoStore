@@ -19,6 +19,37 @@ class RankedAppAdapter(
     private val onItemClick: (AppItem) -> Unit
 ) : ListAdapter<AppItem, RankedAppAdapter.AppViewHolder>(AppDiffCallback()) {
 
+    companion object {
+        const val PAYLOAD_RANK = "payload_rank"
+    }
+
+    private var attachedRecyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        attachedRecyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        attachedRecyclerView = null
+    }
+
+    override fun onCurrentListChanged(previousList: List<AppItem>, currentList: List<AppItem>) {
+        super.onCurrentListChanged(previousList, currentList)
+        if (previousList.isNotEmpty() && currentList.isNotEmpty()) {
+            attachedRecyclerView?.let { rv ->
+                if (rv.isComputingLayout) {
+                    rv.post {
+                        if (itemCount > 0) notifyItemRangeChanged(0, itemCount, PAYLOAD_RANK)
+                    }
+                } else {
+                    notifyItemRangeChanged(0, currentList.size, PAYLOAD_RANK)
+                }
+            } ?: notifyItemRangeChanged(0, currentList.size, PAYLOAD_RANK)
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppViewHolder {
         val binding = ItemAppListRowBinding.inflate(
             LayoutInflater.from(parent.context),
@@ -32,8 +63,16 @@ class RankedAppAdapter(
         holder.bind(getItem(position), position + 1)
     }
 
+    override fun onBindViewHolder(holder: AppViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.contains(PAYLOAD_RANK)) {
+            holder.updateRank(position + 1)
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
+    }
+
     inner class AppViewHolder(
-        private val binding: ItemAppListRowBinding
+        val binding: ItemAppListRowBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
@@ -43,6 +82,10 @@ class RankedAppAdapter(
                     onItemClick(getItem(position))
                 }
             }
+        }
+
+        fun updateRank(rank: Int) {
+            binding.tvRank.text = rank.toString()
         }
 
         fun bind(item: AppItem, rank: Int) {
