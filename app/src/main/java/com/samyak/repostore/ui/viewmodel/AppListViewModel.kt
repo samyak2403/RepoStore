@@ -32,6 +32,14 @@ class AppListViewModel(
     private val loadedApps = mutableListOf<AppItem>()
     private var loadJob: Job? = null
     private var isLoadingMore = false
+    private var canLoadMore = true
+
+    val hasMore: Boolean
+        get() = canLoadMore
+
+    private val parsedListType: ListType = runCatching {
+        ListType.valueOf(listType)
+    }.getOrDefault(ListType.TRENDING)
 
     private val category: AppCategory? = categoryName?.let { 
         AppCategory.entries.find { cat -> cat.name == it }
@@ -45,7 +53,7 @@ class AppListViewModel(
         return when {
             category == AppCategory.GAMES -> "android game"
             category != null -> category.query
-            else -> when (ListType.valueOf(listType)) {
+            else -> when (parsedListType) {
                 ListType.FEATURED -> "android app"
                 ListType.TRENDING -> "android app"
                 ListType.UPDATED -> "android app"
@@ -59,6 +67,7 @@ class AppListViewModel(
             currentPage = 1
             loadedApps.clear()
             isLoadingMore = false
+            canLoadMore = true
         }
 
         loadJob?.cancel()
@@ -70,7 +79,7 @@ class AppListViewModel(
                 AppListUiState.LoadingMore(loadedApps.toList())
             }
 
-            val result = if (category != null && ListType.valueOf(listType) == ListType.CATEGORY) {
+            val result = if (category != null && parsedListType == ListType.CATEGORY) {
                 repository.getAppsByCategory(category, currentPage)
             } else {
                 val query = getQuery()
@@ -87,11 +96,15 @@ class AppListViewModel(
                     val newApps = apps.filter { it.repo.id !in existingIds }
                     loadedApps.addAll(newApps)
 
-                    when (ListType.valueOf(listType)) {
+                    when (parsedListType) {
                         ListType.FEATURED -> loadedApps.sortByDescending { it.repo.stars }
                         ListType.TRENDING -> loadedApps.sortByDescending { it.repo.stars }
                         ListType.UPDATED -> loadedApps.sortByDescending { it.repo.updatedAt }
                         ListType.CATEGORY -> loadedApps.sortByDescending { it.repo.stars }
+                    }
+
+                    if (apps.isEmpty()) {
+                        canLoadMore = false
                     }
 
                     _uiState.value = if (loadedApps.isEmpty()) {
@@ -114,50 +127,55 @@ class AppListViewModel(
     }
 
     fun loadMore() {
-        if (isLoadingMore) return
+        if (!canLoadMore || isLoadingMore) return
         if (_uiState.value is AppListUiState.Loading) return
 
         isLoadingMore = true
-        currentPage++
+        val nextPage = currentPage + 1
 
         viewModelScope.launch {
             _uiState.value = AppListUiState.LoadingMore(loadedApps.toList())
 
-            val result = if (category != null && ListType.valueOf(listType) == ListType.CATEGORY) {
-                repository.getAppsByCategory(category, currentPage)
+            val result = if (category != null && parsedListType == ListType.CATEGORY) {
+                repository.getAppsByCategory(category, nextPage)
             } else {
                 val query = getQuery()
-                repository.searchApps(query, currentPage)
+                repository.searchApps(query, nextPage)
             }
 
             result.fold(
                 onSuccess = { apps ->
-                    val existingIds = loadedApps.map { it.repo.id }.toSet()
-                    val newApps = apps.filter { it.repo.id !in existingIds }
-                    loadedApps.addAll(newApps)
-
-                    when (ListType.valueOf(listType)) {
-                        ListType.FEATURED -> loadedApps.sortByDescending { it.repo.stars }
-                        ListType.TRENDING -> loadedApps.sortByDescending { it.repo.stars }
-                        ListType.UPDATED -> loadedApps.sortByDescending { it.repo.updatedAt }
-                        ListType.CATEGORY -> loadedApps.sortByDescending { it.repo.stars }
+                    if (apps.isEmpty()) {
+                        canLoadMore = false
+                    } else {
+                        val existingIds = loadedApps.map { it.repo.id }.toSet()
+                        val newApps = apps.filter { it.repo.id !in existingIds }
+                        if (newApps.isEmpty()) {
+                            canLoadMore = false
+                        } else {
+                            currentPage = nextPage
+                            loadedApps.addAll(newApps)
+                        }
                     }
 
                     _uiState.value = AppListUiState.Success(loadedApps.toList())
+                    isLoadingMore = false
                 },
                 onFailure = {
+                    isLoadingMore = false
                     _uiState.value = AppListUiState.Success(loadedApps.toList())
                 }
             )
-            isLoadingMore = false
         }
     }
 
     fun refresh() {
+        canLoadMore = true
         loadApps(refresh = true)
     }
 
     fun retry() {
+        canLoadMore = true
         loadApps(refresh = true)
     }
 }
